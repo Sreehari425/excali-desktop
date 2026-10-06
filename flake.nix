@@ -81,7 +81,7 @@
         pname = "excali-desktop-frontend";
         version = "0.1.0";
         src = self;
-        npmDepsHash = "sha256-ZLAWtu3Pymyuyyk85dIAiU0AAIuWn8/2LbaKPmk3Etc=";
+        npmDepsHash = "sha256-uw7fNPOIplmara+21JFDk9wIjnKWdsZAnbIeYgYlYUI=";
         npmFlags = [ "--legacy-peer-deps" ];
         npmBuildScript = "build";
         dontNpmInstall = true;

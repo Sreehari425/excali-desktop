@@ -85,7 +85,7 @@ export default function App() {
       </header>
       <section className="canvas" aria-label="Excalidraw canvas">
         <Excalidraw
-          excalidrawAPI={(api) => { apiRef.current = api; }}
+          onExcalidrawAPI={(api) => { apiRef.current = api; }}
           autoFocus
         />
       </section>
