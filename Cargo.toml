@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "=3.0.0-alpha.3", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
-
+tauri = { version = "=3.0.0-alpha.4", features = [] }
+tauri-runtime-cef = "=3.0.0-alpha.5"
+tauri-plugin-dialog = { version = "=3.0.0-alpha.3", default-features = false, features = ["xdg-portal"] }
+tauri-plugin-fs = "=3.0.0-alpha.2"
