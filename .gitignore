@@ -1,1 +1,9 @@
 /target
+/dist
+/node_modules
+/target
+/gen
+*.tsbuildinfo
+/.direnv
+result
+result-*
