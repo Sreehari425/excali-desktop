@@ -27,6 +27,22 @@
         {"type":"minimal","name":"cef_binary_152.0.6+g708dc14+chromium-152.0.7977.83_linux64_minimal.tar.bz2","sha1":"9711b86c105fb590da576fe5a829802f1a79d520"}
         EOF
       '';
+      cargoTauri = pkgs.rustPlatform.buildRustPackage {
+        pname = "tauri-cli";
+        version = "3.0.0-alpha.4";
+        src = pkgs.fetchCrate {
+          pname = "tauri-cli";
+          version = "3.0.0-alpha.4";
+          hash = "sha256-6Cvak6/HkLeL3ZeGNzlbDPj9xeYte1lTA/L6ucRWDjo=";
+        };
+        cargoHash = "sha256-bkUkAG6bbYQly8BcwufK80Ido8sf07l6ar5EVe0m7fU=";
+        nativeBuildInputs = with pkgs; [ pkg-config ];
+        buildInputs = with pkgs; [ bzip2 xz zstd ];
+        env.ZSTD_SYS_USE_PKG_CONFIG = true;
+        cargoBuildFlags = [ "--bin" "cargo-tauri" ];
+        doCheck = false;
+        meta.mainProgram = "cargo-tauri";
+      };
       runtimeLibraries = with pkgs; [
         gtk4
         glib
@@ -53,6 +69,7 @@
         libXtst
         libxcb
         libdrm
+        libGL
         mesa
         libgbm
         nspr
@@ -104,13 +121,14 @@
       packages.${system} = {
         default = app;
         inherit frontend;
+        cargo-tauri = cargoTauri;
       };
       apps.${system}.default = {
         type = "app";
         program = "${app}/bin/excali-desktop";
       };
       devShells.${system}.default = pkgs.mkShell {
-        packages = with pkgs; [ nodejs_22 rustc cargo rustfmt clippy pkg-config cmake ninja zenity xdg-desktop-portal xdg-desktop-portal-gtk ];
+        packages = with pkgs; [ nodejs_22 rustc cargo rustfmt clippy pkg-config cmake ninja zenity xdg-desktop-portal xdg-desktop-portal-gtk ] ++ [ cargoTauri ];
         buildInputs = runtimeLibraries;
         LD_LIBRARY_PATH = lib.makeLibraryPath runtimeLibraries;
         CEF_PATH = "${cefDir}";

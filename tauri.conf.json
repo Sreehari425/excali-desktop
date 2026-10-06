@@ -50,6 +50,7 @@
           "libpango-1.0-0",
           "libudev1",
           "libasound2",
+          "libgl1",
           "libnspr4",
           "libnss3",
           "xdg-desktop-portal",
