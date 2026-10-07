@@ -23,6 +23,9 @@ import {
 
 const drawingFilter = [{ name: "Excalidraw drawing", extensions: ["excalidraw"] }];
 
+const nameFromPath = (path: string) =>
+  path.split(/[\\/]/).pop()?.replace(/\.excalidraw$/i, "") || "Untitled";
+
 export default function App() {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const canvasRef = useRef<HTMLElement | null>(null);
@@ -149,6 +152,9 @@ export default function App() {
           appState: { ...restored.appState, ...appStateRef.current },
           files: restored.files,
         };
+        if (typeof restored.appState.name === "string" && restored.appState.name) {
+          setFileName(restored.appState.name);
+        }
       }
     } catch (error) {
       // Ignore a broken session snapshot and let the user start with a blank
@@ -169,6 +175,12 @@ export default function App() {
     appState: AppState,
   ) => {
     if (!persistenceReadyRef.current) return;
+    const activeFileName = appState.fileHandle?.name;
+    if (activeFileName) {
+      setFileName(nameFromPath(activeFileName));
+    } else if (typeof appState.name === "string" && appState.name) {
+      setFileName(appState.name);
+    }
     appStateRef.current = pickPersistedAppState(appState);
     scheduleSettingsSave();
     scheduleSessionSave();
@@ -200,18 +212,43 @@ export default function App() {
         null,
         null,
       );
+      const name = nameFromPath(path);
+      const currentTheme = appStateRef.current.theme ?? apiRef.current?.getAppState().theme;
       apiRef.current?.updateScene({
         elements: restored.elements,
-        appState: restored.appState,
+        appState: {
+          ...restored.appState,
+          ...(currentTheme ? { theme: currentTheme } : {}),
+          name,
+        },
       });
       apiRef.current?.addFiles(Object.values(restored.files));
       filePath.current = path;
-      setFileName(path.split(/[\\/]/).pop()?.replace(/\.excalidraw$/i, "") || "Untitled");
+      setFileName(name);
       setMessage("");
     } catch (error) {
       setMessage(`Could not open drawing: ${String(error)}`);
     }
   }, []);
+
+  useEffect(() => {
+    const handleOpenShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "o") {
+        return;
+      }
+      const target = event.target;
+      if (target instanceof Element && target.closest("input, textarea, select, [contenteditable='true']")) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      void openDrawing();
+    };
+
+    window.addEventListener("keydown", handleOpenShortcut, true);
+    return () => window.removeEventListener("keydown", handleOpenShortcut, true);
+  }, [openDrawing]);
 
   const saveDrawing = useCallback(async (saveAs = false) => {
     try {
@@ -225,15 +262,17 @@ export default function App() {
         });
       }
       if (!path) return;
+      const name = nameFromPath(path);
       const json = serializeAsJSON(
         api.getSceneElements(),
-        api.getAppState(),
+        { ...api.getAppState(), name },
         api.getFiles(),
         "local",
       );
       await writeTextFile(path, json);
       filePath.current = path;
-      setFileName(path.split(/[\\/]/).pop()?.replace(/\.excalidraw$/i, "") || "Untitled");
+      api.updateScene({ appState: { name } });
+      setFileName(name);
       setMessage("Saved");
     } catch (error) {
       setMessage(`Could not save drawing: ${String(error)}`);
