@@ -162,6 +162,51 @@ export default function App() {
     }, 400);
   }, []);
 
+  const persistSessionNow = useCallback(async () => {
+    const api = apiRef.current;
+    if (!api) throw new Error("Editor is not ready");
+    if (sessionSaveTimerRef.current) {
+      clearTimeout(sessionSaveTimerRef.current);
+      sessionSaveTimerRef.current = null;
+    }
+    if (settingsSaveTimerRef.current) {
+      clearTimeout(settingsSaveTimerRef.current);
+      settingsSaveTimerRef.current = null;
+    }
+    const sceneAppState = { ...api.getAppState(), theme };
+    const currentAppState = { ...pickPersistedAppState(sceneAppState), theme };
+    appStateRef.current = currentAppState;
+    const settings = JSON.stringify({
+      version: 1 as const,
+      appState: currentAppState,
+      libraryItems: libraryItemsRef.current,
+      recentFiles: recentFilesRef.current,
+    });
+    const serialized = serializeAsJSON(
+      api.getSceneElements(),
+      sceneAppState,
+      api.getFiles(),
+      "local",
+    );
+    settingsSaveQueueRef.current = settingsSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await mkdir(".", { baseDir: BaseDirectory.AppLocalData, recursive: true });
+        await writeTextFile(editorSettingsFile, settings, {
+          baseDir: BaseDirectory.AppLocalData,
+        });
+      });
+    sessionSaveQueueRef.current = sessionSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await mkdir(".", { baseDir: BaseDirectory.AppLocalData, recursive: true });
+        await writeTextFile(lastSessionFile, serialized, {
+          baseDir: BaseDirectory.AppLocalData,
+        });
+      });
+    await Promise.all([sessionSaveQueueRef.current, settingsSaveQueueRef.current]);
+  }, [theme]);
+
   const loadEditorSettings = useCallback(async (): Promise<ExcalidrawInitialDataState> => {
     let initialData: ExcalidrawInitialDataState = {};
     try {
@@ -347,7 +392,7 @@ export default function App() {
         target.closest("input, textarea, select, [contenteditable='true']"),
       );
 
-      if (hasCommandModifier && event.shiftKey && !event.altKey && key === "p") {
+      if (hasCommandModifier && !event.shiftKey && !event.altKey && event.code === "Space") {
         event.preventDefault();
         event.stopImmediatePropagation();
         if (paletteOpen) closeCommandPalette();
@@ -459,6 +504,7 @@ export default function App() {
       if (!api) throw new Error("Editor is not ready");
       if (collabSettings.service === "public") {
         await backupCurrentDrawing();
+        await persistSessionNow();
         const invite = makeRoomLink(publicCollaborationSettings, credentials.roomId, credentials.roomKey, theme);
         await openPublicRoom(invite);
         setRoomLink(invite);
@@ -469,13 +515,14 @@ export default function App() {
       }
       setMessage("Collaboration room created");
     } catch (error) { setCollabStatus(`Could not create room: ${String(error)}`); }
-  }, [backupCurrentDrawing, collabSettings, startRoom, theme]);
+  }, [backupCurrentDrawing, collabSettings, persistSessionNow, startRoom, theme]);
 
   const joinCollaborationRoom = useCallback(async () => {
     try {
       const credentials = parseRoomLink(roomLinkInput);
       if (collabSettings.service === "public") {
         await backupCurrentDrawing();
+        await persistSessionNow();
         const invite = makeRoomLink(publicCollaborationSettings, credentials.roomId, credentials.roomKey, theme);
         await openPublicRoom(invite);
         setRoomLink(invite);
@@ -486,7 +533,7 @@ export default function App() {
         setMessage("Joining collaboration room…");
       }
     } catch (error) { setCollabStatus(`Could not join room: ${String(error)}`); }
-  }, [backupCurrentDrawing, collabSettings, roomLinkInput, startRoom, theme]);
+  }, [backupCurrentDrawing, collabSettings, persistSessionNow, roomLinkInput, startRoom, theme]);
 
   const copyInviteLink = useCallback(async () => {
     try { await navigator.clipboard.writeText(roomLink); setCollabStatus("Invite link copied"); }
@@ -620,7 +667,7 @@ export default function App() {
             </button>)}
             {!paletteResults.length && <p className="command-palette-empty">{paletteView === "recent" && !recentFiles.length ? "No recent drawings yet. Open or save a drawing to add it here." : "No matching results."}</p>}
           </div>
-          <footer className="command-palette-footer"><span>↑↓ Navigate</span><span>↵ Select</span><span>Esc {paletteView === "recent" ? "Back" : "Close"}</span></footer>
+          <footer className="command-palette-footer"><span>↑↓ Navigate</span><span>↵ Select</span><span>Ctrl+Space Toggle</span><span>Esc {paletteView === "recent" ? "Back" : "Close"}</span></footer>
         </section>
       </div>}
       {collabOpen && <section className="collab-panel" aria-label="Collaboration">

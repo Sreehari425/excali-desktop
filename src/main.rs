@@ -212,25 +212,59 @@ fn start_collaboration_proxy(app: &mut tauri::App) -> Result<(), Box<dyn std::er
 }
 
 fn main() {
+    let offline_editor_url = if cfg!(debug_assertions) {
+        "http://127.0.0.1:1420/"
+    } else {
+        "tauri://localhost/"
+    };
     tauri::Builder::default()
         .runtime(tauri_runtime_cef::Cef::default())
         .plugin(
             tauri::plugin::Builder::<tauri::DynRuntime>::new("excalidraw-theme-handoff")
-                .initialization_script(
-                    r#"(() => {
+                .initialization_script(format!(
+                    r###"(() => {{
                       if (location.hostname !== "excalidraw.com" && location.hostname !== "www.excalidraw.com") return;
                       const requestedTheme = new URLSearchParams(location.search).get("desktop-theme");
-                      if (requestedTheme !== "dark" && requestedTheme !== "light") return;
-                      try {
-                        localStorage.setItem("excalidraw-theme", requestedTheme);
-                        const cleanUrl = new URL(location.href);
-                        cleanUrl.searchParams.delete("desktop-theme");
-                        history.replaceState(history.state, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
-                      } catch (error) {
+                      try {{
+                        if (requestedTheme === "dark" || requestedTheme === "light") {{
+                          localStorage.setItem("excalidraw-theme", requestedTheme);
+                          const cleanUrl = new URL(location.href);
+                          cleanUrl.searchParams.delete("desktop-theme");
+                          history.replaceState(history.state, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+                        }}
+                      }} catch (error) {{
                         console.error("Could not apply desktop theme to Excalidraw", error);
-                      }
-                    })();"#,
-                )
+                      }}
+                      const returnToOffline = () => {{ location.href = "{offline_editor_url}"; }};
+                      window.addEventListener("keydown", (event) => {{
+                        if (event.ctrlKey && !event.altKey && !event.shiftKey && event.code === "Space") {{
+                          event.preventDefault();
+                          event.stopImmediatePropagation();
+                          returnToOffline();
+                        }}
+                      }}, true);
+                      const addOfflineButton = () => {{
+                        if (document.getElementById("excalidraw-desktop-offline-return")) return;
+                        const button = document.createElement("button");
+                        button.id = "excalidraw-desktop-offline-return";
+                        button.type = "button";
+                        button.textContent = "← Return to offline editor";
+                        button.title = "Return to your local drawing (Ctrl+Space)";
+                        button.setAttribute("aria-label", "Return to offline editor");
+                        Object.assign(button.style, {{
+                          position: "fixed", left: "16px", top: "72px", zIndex: "2147483647",
+                          padding: "9px 13px", border: "1px solid #6865a8", borderRadius: "8px",
+                          background: "#24232d", color: "#f4f3ff", font: "500 13px system-ui, sans-serif",
+                          boxShadow: "0 3px 14px #0005", cursor: "pointer"
+                        }});
+                        button.addEventListener("click", returnToOffline);
+                        document.body.appendChild(button);
+                      }};
+                      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", addOfflineButton, {{ once: true }});
+                      else addOfflineButton();
+                    }})();"###,
+                    offline_editor_url = offline_editor_url
+                ))
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
