@@ -30,7 +30,6 @@ import {
   parseRoomLink,
   publicCollaborationSettings,
   saveRoomScene,
-  saveRoomSnapshot,
   type CollaborationSettings,
 } from "./collaboration";
 
@@ -385,11 +384,10 @@ export default function App() {
       if (!api) throw new Error("Editor is not ready");
       if (collabSettings.service === "public") {
         await backupCurrentDrawing();
-        await saveRoomSnapshot(collabSettings, credentials.roomId, credentials.roomKey, api);
-        const invite = makeRoomLink(collabSettings, credentials.roomId, credentials.roomKey);
+        const invite = makeRoomLink(publicCollaborationSettings, credentials.roomId, credentials.roomKey);
         await openPublicRoom(invite);
         setRoomLink(invite);
-        setCollabStatus("Open in Excalidraw · room sync runs there");
+        setCollabStatus("Room opened in Excalidraw. Import the timestamped local backup there to share this drawing.");
       } else {
         await saveRoomScene(collabSettings, credentials.roomId, credentials.roomKey, api.getSceneElementsIncludingDeleted());
         await startRoom(credentials, false);
@@ -403,10 +401,10 @@ export default function App() {
       const credentials = parseRoomLink(roomLinkInput);
       if (collabSettings.service === "public") {
         await backupCurrentDrawing();
-        const invite = makeRoomLink(collabSettings, credentials.roomId, credentials.roomKey);
+        const invite = makeRoomLink(publicCollaborationSettings, credentials.roomId, credentials.roomKey);
         await openPublicRoom(invite);
         setRoomLink(invite);
-        setCollabStatus("Open in Excalidraw · room sync runs there");
+        setCollabStatus("Room opened in Excalidraw");
         setMessage("Joining collaboration room in Excalidraw…");
       } else {
         await startRoom(credentials, true);
@@ -463,7 +461,7 @@ export default function App() {
           </>}
           <button onClick={() => void persistCollabSettings(collabDraft).then(() => setCollabStatus("Collaboration settings saved")).catch((error) => setCollabStatus(`Could not save settings: ${String(error)}`))}>Save service settings</button>
         </details>
-        <small>{collabSettings.service === "public" ? "Public rooms open in Excalidraw in this window. A timestamped local backup is saved before you leave the editor." : "Collaboration sends encrypted room data and image contents to the selected service. Local editing and autosave continue when disconnected."}</small>
+        <small>{collabSettings.service === "public" ? "Public rooms are handled by excalidraw.com in this window. The app saves a local backup first; import that file in Excalidraw to share the drawing. Self-hosted rooms use this app's collaboration client." : "Collaboration sends encrypted room data and image contents to your configured self-hosted service. Local editing and autosave continue when disconnected."}</small>
       </section>}
       <section className="canvas" aria-label="Excalidraw canvas" ref={canvasRef}>
         <Excalidraw

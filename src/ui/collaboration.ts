@@ -19,16 +19,8 @@ export const collaborationSettingsFile = "collaboration-settings.json";
 export const publicCollaborationSettings: CollaborationSettings = {
   version: 1,
   service: "public",
-  socketUrl: "https://oss-collab.excalidraw.com",
-  firebaseConfig: {
-    apiKey: "AIzaSyAd15pYlMci_xIp9ko6wkEsDzAAA0Dn0RU",
-    authDomain: "excalidraw-room-persistence.firebaseapp.com",
-    databaseURL: "https://excalidraw-room-persistence.firebaseio.com",
-    projectId: "excalidraw-room-persistence",
-    storageBucket: "excalidraw-room-persistence.appspot.com",
-    messagingSenderId: "654800341332",
-    appId: "1:654800341332:web:4a692de832b55bd57ce0c1",
-  },
+  socketUrl: "",
+  firebaseConfig: {},
   websiteUrl: "https://excalidraw.com/",
 };
 
@@ -49,7 +41,12 @@ export function parseCollaborationSettings(source: string): CollaborationSetting
       !item.firebaseConfig || typeof item.firebaseConfig !== "object") {
     throw new Error("Unsupported or malformed collaboration settings");
   }
-  return item as CollaborationSettings;
+  // Legacy public-service settings included Excalidraw's public Firebase
+  // config and room endpoint. Public rooms now run on excalidraw.com and
+  // don't need either value in this app.
+  return item.service === "public"
+    ? { ...item, socketUrl: "", firebaseConfig: {} } as CollaborationSettings
+    : item as CollaborationSettings;
 }
 
 export function parseRoomLink(raw: string): { roomId: string; roomKey: string } {
@@ -66,11 +63,13 @@ export function makeRoomLink(settings: CollaborationSettings, roomId: string, ro
   return base.toString();
 }
 
-const defaultFirebaseConfig = publicCollaborationSettings.firebaseConfig;
 const uploadedRoomFiles = new Map<string, number>();
 let initializedFirebase: { fingerprint: string; app: ReturnType<typeof initializeApp> } | null = null;
 function firebaseAppFor(config: Record<string, string>) {
-  const effective = Object.keys(config).length ? config : defaultFirebaseConfig;
+  if (!Object.keys(config).length) {
+    throw new Error("Add Firebase-compatible persistence settings for the self-hosted service");
+  }
+  const effective = config;
   const fingerprint = JSON.stringify(effective);
   if (initializedFirebase?.fingerprint === fingerprint) return initializedFirebase.app;
   const app = getApps().find((candidate) => candidate.name === `collab-${btoa(fingerprint).slice(0, 20)}`) ??
@@ -134,14 +133,6 @@ async function saveRoomFiles(settings: CollaborationSettings, roomId: string, ro
   return savedIds;
 }
 
-export async function saveRoomSnapshot(settings: CollaborationSettings, roomId: string, roomKey: string, api: ExcalidrawImperativeAPI) {
-  const elements = api.getSceneElementsIncludingDeleted();
-  const savedIds = await saveRoomFiles(settings, roomId, roomKey, api, elements);
-  const shareableElements = elements.map((element) => element.type === "image" && element.fileId && savedIds.has(element.fileId)
-    ? { ...element, status: "saved" as const }
-    : element);
-  await saveRoomScene(settings, roomId, roomKey, shareableElements);
-}
 async function loadRoomFiles(settings: CollaborationSettings, roomId: string, roomKey: string, api: ExcalidrawImperativeAPI, elements: readonly any[]) {
   const storage = getStorage(firebaseAppFor(settings.firebaseConfig));
   const files = await Promise.all(elements.filter((element) => element.type === "image" && element.fileId && !element.isDeleted)
