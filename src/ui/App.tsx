@@ -53,10 +53,9 @@ export default function App() {
         api.getFiles(),
         "local",
       );
-      const finalPath = path.toLowerCase().endsWith(".excalidraw") ? path : `${path}.excalidraw`;
-      await writeTextFile(finalPath, json);
-      filePath.current = finalPath;
-      setFileName(finalPath.split(/[\\/]/).pop()?.replace(/\.excalidraw$/i, "") || "Untitled");
+      await writeTextFile(path, json);
+      filePath.current = path;
+      setFileName(path.split(/[\\/]/).pop()?.replace(/\.excalidraw$/i, "") || "Untitled");
       setMessage("Saved");
     } catch (error) {
       setMessage(`Could not save drawing: ${String(error)}`);
