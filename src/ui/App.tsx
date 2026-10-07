@@ -7,6 +7,7 @@ import type {
   LibraryItems,
 } from "@excalidraw/excalidraw/types";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   BaseDirectory,
   exists,
@@ -20,11 +21,28 @@ import {
   parsePersistedEditorSettings,
   pickPersistedAppState,
 } from "./persistence";
+import {
+  collaborationSettingsFile,
+  connectRoom,
+  createRoomCredentials,
+  makeRoomLink,
+  parseCollaborationSettings,
+  parseRoomLink,
+  publicCollaborationSettings,
+  saveRoomScene,
+  saveRoomSnapshot,
+  type CollaborationSettings,
+} from "./collaboration";
 
 const drawingFilter = [{ name: "Excalidraw drawing", extensions: ["excalidraw"] }];
 
 const nameFromPath = (path: string) =>
   path.split(/[\\/]/).pop()?.replace(/\.excalidraw$/i, "") || "Untitled";
+
+const openPublicRoom = async (url: string) => {
+  if (isTauri()) await invoke("navigate_to_public_room", { url });
+  else window.open(url, "_blank", "noopener,noreferrer");
+};
 
 export default function App() {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -33,6 +51,13 @@ export default function App() {
   const [fileName, setFileName] = useState("Untitled");
   const [message, setMessage] = useState("");
   const [theme, setTheme] = useState<AppState["theme"]>("light");
+  const [collabOpen, setCollabOpen] = useState(false);
+  const [collabSettings, setCollabSettings] = useState<CollaborationSettings>(publicCollaborationSettings);
+  const [collabDraft, setCollabDraft] = useState<CollaborationSettings>(publicCollaborationSettings);
+  const [roomLinkInput, setRoomLinkInput] = useState("");
+  const [roomLink, setRoomLink] = useState("");
+  const [collabStatus, setCollabStatus] = useState("Offline");
+  const collabConnectionRef = useRef<ReturnType<typeof connectRoom> | null>(null);
   const persistenceReadyRef = useRef(false);
   const appStateRef = useRef<Partial<AppState>>({});
   const libraryItemsRef = useRef<LibraryItems>([]);
@@ -118,6 +143,22 @@ export default function App() {
     let initialData: ExcalidrawInitialDataState = {};
     try {
       await mkdir(".", { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    } catch (error) {
+      setMessage(`Could not prepare local data: ${String(error)}`);
+    }
+    try {
+      if (await exists(collaborationSettingsFile, { baseDir: BaseDirectory.AppLocalData })) {
+        const source = await readTextFile(collaborationSettingsFile, { baseDir: BaseDirectory.AppLocalData });
+        const settings = parseCollaborationSettings(source);
+        setCollabSettings(settings);
+        setCollabDraft(settings);
+      }
+    } catch (error) {
+      setCollabSettings(publicCollaborationSettings);
+      setCollabDraft(publicCollaborationSettings);
+      setMessage(`Could not load collaboration settings; using the public service: ${String(error)}`);
+    }
+    try {
       if (await exists(editorSettingsFile, { baseDir: BaseDirectory.AppLocalData })) {
         const source = await readTextFile(editorSettingsFile, {
           baseDir: BaseDirectory.AppLocalData,
@@ -182,6 +223,7 @@ export default function App() {
       setFileName(appState.name);
     }
     appStateRef.current = pickPersistedAppState(appState);
+    collabConnectionRef.current?.sync();
     scheduleSettingsSave();
     scheduleSessionSave();
   }, [scheduleSessionSave, scheduleSettingsSave]);
@@ -286,6 +328,107 @@ export default function App() {
     setMessage("");
   }, []);
 
+  const persistCollabSettings = useCallback(async (settings: CollaborationSettings) => {
+    await mkdir(".", { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    await writeTextFile(collaborationSettingsFile, JSON.stringify(settings, null, 2), {
+      baseDir: BaseDirectory.AppLocalData,
+    });
+    setCollabSettings(settings);
+    setCollabDraft(settings);
+  }, []);
+
+  const handleCollabStatus = useCallback((status: string) => {
+    setCollabStatus(status);
+    if (status === "Connected") setMessage("Joined collaboration room");
+  }, []);
+
+  const backupCurrentDrawing = useCallback(async () => {
+    const api = apiRef.current;
+    if (!api) throw new Error("Editor is not ready");
+    const date = new Date().toISOString().replace(/[:.]/g, "-");
+    const source = serializeAsJSON(api.getSceneElements(), api.getAppState(), api.getFiles(), "local");
+    await writeTextFile(`collaboration-backup-${date}.excalidraw`, source, { baseDir: BaseDirectory.AppLocalData });
+  }, []);
+
+  const startRoom = useCallback(async (credentials: { roomId: string; roomKey: string }, joining: boolean) => {
+    const api = apiRef.current;
+    if (!api) throw new Error("Editor is not ready");
+    let socketUrl = collabSettings.socketUrl;
+    try {
+      socketUrl = await invoke<string>("configure_collaboration_proxy", {
+        targetUrl: collabSettings.socketUrl,
+        origin: new URL(collabSettings.websiteUrl).origin,
+      });
+    } catch (error) {
+      // Browser-based development has no Tauri command bridge; use the room
+      // endpoint directly there. Packaged desktop builds use the native proxy.
+      if (isTauri()) throw new Error(`Could not start the desktop room proxy: ${String(error)}`);
+    }
+    if (joining) {
+      await backupCurrentDrawing();
+      api.resetScene();
+      filePath.current = null;
+      setFileName("Untitled");
+    }
+    const invite = makeRoomLink(collabSettings, credentials.roomId, credentials.roomKey);
+    const connection = connectRoom(collabSettings, credentials.roomId, credentials.roomKey, api, handleCollabStatus, socketUrl);
+    collabConnectionRef.current?.close();
+    collabConnectionRef.current = connection;
+    setRoomLink(invite);
+    setCollabStatus("Connecting…");
+  }, [backupCurrentDrawing, collabSettings, handleCollabStatus]);
+
+  const createCollaborationRoom = useCallback(async () => {
+    try {
+      const credentials = await createRoomCredentials();
+      const api = apiRef.current;
+      if (!api) throw new Error("Editor is not ready");
+      if (collabSettings.service === "public") {
+        await backupCurrentDrawing();
+        await saveRoomSnapshot(collabSettings, credentials.roomId, credentials.roomKey, api);
+        const invite = makeRoomLink(collabSettings, credentials.roomId, credentials.roomKey);
+        await openPublicRoom(invite);
+        setRoomLink(invite);
+        setCollabStatus("Open in Excalidraw · room sync runs there");
+      } else {
+        await saveRoomScene(collabSettings, credentials.roomId, credentials.roomKey, api.getSceneElementsIncludingDeleted());
+        await startRoom(credentials, false);
+      }
+      setMessage("Collaboration room created");
+    } catch (error) { setCollabStatus(`Could not create room: ${String(error)}`); }
+  }, [backupCurrentDrawing, collabSettings, startRoom]);
+
+  const joinCollaborationRoom = useCallback(async () => {
+    try {
+      const credentials = parseRoomLink(roomLinkInput);
+      if (collabSettings.service === "public") {
+        await backupCurrentDrawing();
+        const invite = makeRoomLink(collabSettings, credentials.roomId, credentials.roomKey);
+        await openPublicRoom(invite);
+        setRoomLink(invite);
+        setCollabStatus("Open in Excalidraw · room sync runs there");
+        setMessage("Joining collaboration room in Excalidraw…");
+      } else {
+        await startRoom(credentials, true);
+        setMessage("Joining collaboration room…");
+      }
+    } catch (error) { setCollabStatus(`Could not join room: ${String(error)}`); }
+  }, [backupCurrentDrawing, collabSettings, roomLinkInput, startRoom]);
+
+  const copyInviteLink = useCallback(async () => {
+    try { await navigator.clipboard.writeText(roomLink); setCollabStatus("Invite link copied"); }
+    catch (error) { setCollabStatus(`Could not copy invite link: ${String(error)}`); }
+  }, [roomLink]);
+
+  const leaveRoom = useCallback(() => {
+    collabConnectionRef.current?.close();
+    collabConnectionRef.current = null;
+    setRoomLink("");
+    setCollabStatus("Offline");
+  }, []);
+
+  useEffect(() => () => collabConnectionRef.current?.close(), []);
+
   return (
     <main className="app-shell" data-theme={theme}>
       <header className="toolbar">
@@ -296,9 +439,32 @@ export default function App() {
           <button onClick={openDrawing}>Open</button>
           <button className="primary" onClick={() => void saveDrawing()}>Save</button>
           <button onClick={() => void saveDrawing(true)}>Save as</button>
+          <button onClick={() => setCollabOpen(true)}>Collaborate</button>
         </nav>
         <span className="status" role="status">{message}</span>
       </header>
+      {collabOpen && <section className="collab-panel" aria-label="Collaboration">
+        <div className="collab-heading"><strong>Collaborate</strong><button onClick={() => setCollabOpen(false)}>Close</button></div>
+        <div className="collab-heading"><p className="collab-status" role="status">{collabStatus}</p>{roomLink && <button onClick={leaveRoom}>Leave room</button>}</div>
+        {roomLink && <div className="collab-invite"><input aria-label="Invite link" readOnly value={roomLink} /><button onClick={() => void copyInviteLink()}>Copy invite</button></div>}
+        <div className="collab-actions"><button className="primary" onClick={() => void createCollaborationRoom()}>{collabSettings.service === "public" ? "Create room in Excalidraw" : "Create room from this drawing"}</button></div>
+        <div className="collab-invite"><input aria-label="Room invite link" placeholder="Paste a room invite link" value={roomLinkInput} onChange={(event) => setRoomLinkInput(event.target.value)} /><button onClick={() => void joinCollaborationRoom()}>{collabSettings.service === "public" ? "Join with Excalidraw" : "Join room"}</button></div>
+        <details><summary>Service settings</summary>
+          <label>Room service<select value={collabDraft.service} onChange={(event) => {
+            const service = event.target.value as CollaborationSettings["service"];
+            setCollabDraft(service === "public" ? publicCollaborationSettings : { ...collabSettings, service });
+          }}><option value="public">Excalidraw public service</option><option value="self-hosted">Self-hosted</option></select></label>
+          {collabDraft.service === "self-hosted" && <>
+            <label>Socket.IO room endpoint<input value={collabDraft.socketUrl} onChange={(event) => setCollabDraft({ ...collabDraft, socketUrl: event.target.value })} placeholder="https://collab.example.com" /></label>
+            <label>Excalidraw website URL<input value={collabDraft.websiteUrl} onChange={(event) => setCollabDraft({ ...collabDraft, websiteUrl: event.target.value })} placeholder="https://draw.example.com/" /></label>
+            <label>Firebase-compatible configuration (JSON)<textarea rows={5} value={JSON.stringify(collabDraft.firebaseConfig, null, 2)} onChange={(event) => {
+              try { setCollabDraft({ ...collabDraft, firebaseConfig: JSON.parse(event.target.value) as Record<string, string> }); } catch { /* allow editing incomplete JSON */ }
+            }} /></label>
+          </>}
+          <button onClick={() => void persistCollabSettings(collabDraft).then(() => setCollabStatus("Collaboration settings saved")).catch((error) => setCollabStatus(`Could not save settings: ${String(error)}`))}>Save service settings</button>
+        </details>
+        <small>{collabSettings.service === "public" ? "Public rooms open in Excalidraw in this window. A timestamped local backup is saved before you leave the editor." : "Collaboration sends encrypted room data and image contents to the selected service. Local editing and autosave continue when disconnected."}</small>
+      </section>}
       <section className="canvas" aria-label="Excalidraw canvas" ref={canvasRef}>
         <Excalidraw
           initialData={loadEditorSettings}

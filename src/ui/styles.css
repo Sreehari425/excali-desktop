@@ -13,6 +13,16 @@ button.primary { color: white; border-color: #6965db; background: #6965db; }
 button.primary:hover { background: #5753c5; }
 .status { max-width: 250px; overflow: hidden; color: #696872; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .canvas { flex: 1; min-height: 0; }
+.collab-panel { position: absolute; z-index: 5; top: 56px; right: 12px; width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 68px); overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid #dedee3; border-radius: 10px; background: #fff; box-shadow: 0 12px 36px #0002; font-size: 13px; }
+.collab-heading, .collab-invite, .collab-actions { display: flex; align-items: center; gap: 8px; }
+.collab-heading { justify-content: space-between; }
+.collab-status { margin: 0; color: #696872; }
+.collab-invite input { min-width: 0; flex: 1; }
+.collab-panel input, .collab-panel textarea, .collab-panel select { border: 1px solid #dedee3; border-radius: 6px; padding: 7px 8px; font: inherit; }
+.collab-panel details { display: flex; flex-direction: column; }
+.collab-panel details[open] { display: flex; gap: 10px; }
+.collab-panel label { display: flex; flex-direction: column; gap: 5px; color: #55555e; }
+.collab-panel small { color: #696872; line-height: 1.5; }
 
 .app-shell[data-theme="dark"] .toolbar {
   border-bottom-color: #2e2e32;
@@ -28,3 +38,6 @@ button.primary:hover { background: #5753c5; }
   color: #e5e5e5;
 }
 .app-shell[data-theme="dark"] .toolbar button:not(.primary):hover { background: #333338; }
+.app-shell[data-theme="dark"] .collab-panel { border-color: #414148; background: #1c1c20; color: #e5e5e5; }
+.app-shell[data-theme="dark"] .collab-panel input, .app-shell[data-theme="dark"] .collab-panel textarea, .app-shell[data-theme="dark"] .collab-panel select { border-color: #414148; background: #242428; color: #e5e5e5; }
+.app-shell[data-theme="dark"] .collab-status, .app-shell[data-theme="dark"] .collab-panel label, .app-shell[data-theme="dark"] .collab-panel small { color: #a1a1aa; }
