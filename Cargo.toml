@@ -3,6 +3,10 @@ name = "excali-desktop"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+default = ["custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "=3.0.0-alpha.3", features = [] }
 

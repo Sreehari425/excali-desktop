@@ -76,6 +76,7 @@
         nss
         systemd
         openssl
+        fontconfig
       ];
       frontend = pkgs.buildNpmPackage {
         pname = "excali-desktop-frontend";
@@ -104,14 +105,27 @@
         src = self;
         cargoLock.lockFile = ./Cargo.lock;
         nativeBuildInputs = with pkgs; [ pkg-config makeWrapper cmake ninja ];
+        dontUseCmakeConfigure = true;
+        dontUseNinjaBuild = true;
+        dontUseNinjaCheck = true;
+        dontUseNinjaInstall = true;
         buildInputs = runtimeLibraries;
+        NIX_LDFLAGS = "-rpath-link ${lib.makeLibraryPath runtimeLibraries}";
         CEF_PATH = "${cefDir}";
         preBuild = ''
           cp -r ${frontend}/dist ./dist
         '';
         postInstall = ''
+          cefRuntime="${cefDir}/${cefVersion}/cef_linux_x86_64"
+          cp "$cefRuntime"/{icudtl.dat,resources.pak,chrome_100_percent.pak,chrome_200_percent.pak,v8_context_snapshot.bin} $out/bin/
+          cp -r "$cefRuntime/locales" $out/bin/locales
+          mkdir -p $out/lib/locales
+          cp "$cefRuntime"/{icudtl.dat,resources.pak,chrome_100_percent.pak,chrome_200_percent.pak,v8_context_snapshot.bin} $out/lib/
+          cp -r "$cefRuntime/locales"/* $out/lib/locales/
           wrapProgram $out/bin/excali-desktop \
             --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath runtimeLibraries}" \
+            --set FONTCONFIG_FILE "${pkgs.fontconfig}/etc/fonts/fonts.conf" \
+            --set FONTCONFIG_PATH "${pkgs.fontconfig}/etc/fonts" \
             --prefix PATH : "${lib.makeBinPath [ pkgs.zenity ]}"
           mkdir -p $out/share/applications
           cp ${desktopItem}/share/applications/*.desktop $out/share/applications/
