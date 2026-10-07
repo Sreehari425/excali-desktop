@@ -57,8 +57,9 @@ export function parseRoomLink(raw: string): { roomId: string; roomKey: string } 
   return { roomId: match[1], roomKey: match[2] };
 }
 
-export function makeRoomLink(settings: CollaborationSettings, roomId: string, roomKey: string): string {
+export function makeRoomLink(settings: CollaborationSettings, roomId: string, roomKey: string, theme?: "light" | "dark"): string {
   const base = new URL(settings.websiteUrl);
+  if (theme) base.searchParams.set("desktop-theme", theme);
   base.hash = `room=${roomId},${roomKey}`;
   return base.toString();
 }

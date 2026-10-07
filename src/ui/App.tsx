@@ -384,7 +384,7 @@ export default function App() {
       if (!api) throw new Error("Editor is not ready");
       if (collabSettings.service === "public") {
         await backupCurrentDrawing();
-        const invite = makeRoomLink(publicCollaborationSettings, credentials.roomId, credentials.roomKey);
+        const invite = makeRoomLink(publicCollaborationSettings, credentials.roomId, credentials.roomKey, theme);
         await openPublicRoom(invite);
         setRoomLink(invite);
         setCollabStatus("Room opened in Excalidraw. Import the timestamped local backup there to share this drawing.");
@@ -394,14 +394,14 @@ export default function App() {
       }
       setMessage("Collaboration room created");
     } catch (error) { setCollabStatus(`Could not create room: ${String(error)}`); }
-  }, [backupCurrentDrawing, collabSettings, startRoom]);
+  }, [backupCurrentDrawing, collabSettings, startRoom, theme]);
 
   const joinCollaborationRoom = useCallback(async () => {
     try {
       const credentials = parseRoomLink(roomLinkInput);
       if (collabSettings.service === "public") {
         await backupCurrentDrawing();
-        const invite = makeRoomLink(publicCollaborationSettings, credentials.roomId, credentials.roomKey);
+        const invite = makeRoomLink(publicCollaborationSettings, credentials.roomId, credentials.roomKey, theme);
         await openPublicRoom(invite);
         setRoomLink(invite);
         setCollabStatus("Room opened in Excalidraw");
@@ -411,7 +411,7 @@ export default function App() {
         setMessage("Joining collaboration room…");
       }
     } catch (error) { setCollabStatus(`Could not join room: ${String(error)}`); }
-  }, [backupCurrentDrawing, collabSettings, roomLinkInput, startRoom]);
+  }, [backupCurrentDrawing, collabSettings, roomLinkInput, startRoom, theme]);
 
   const copyInviteLink = useCallback(async () => {
     try { await navigator.clipboard.writeText(roomLink); setCollabStatus("Invite link copied"); }

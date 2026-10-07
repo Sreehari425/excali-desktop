@@ -214,6 +214,25 @@ fn start_collaboration_proxy(app: &mut tauri::App) -> Result<(), Box<dyn std::er
 fn main() {
     tauri::Builder::default()
         .runtime(tauri_runtime_cef::Cef::default())
+        .plugin(
+            tauri::plugin::Builder::<tauri::DynRuntime>::new("excalidraw-theme-handoff")
+                .initialization_script(
+                    r#"(() => {
+                      if (location.hostname !== "excalidraw.com" && location.hostname !== "www.excalidraw.com") return;
+                      const requestedTheme = new URLSearchParams(location.search).get("desktop-theme");
+                      if (requestedTheme !== "dark" && requestedTheme !== "light") return;
+                      try {
+                        localStorage.setItem("excalidraw-theme", requestedTheme);
+                        const cleanUrl = new URL(location.href);
+                        cleanUrl.searchParams.delete("desktop-theme");
+                        history.replaceState(history.state, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+                      } catch (error) {
+                        console.error("Could not apply desktop theme to Excalidraw", error);
+                      }
+                    })();"#,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(start_collaboration_proxy)
