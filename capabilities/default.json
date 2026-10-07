@@ -9,6 +9,8 @@
   "permissions": [
     "core:default",
     "dialog:default",
+    "allow-configure-collaboration-proxy",
+    "allow-navigate-to-public-room",
     "fs:allow-read-file",
     "fs:allow-write-file",
     "fs:create-app-specific-dirs",
