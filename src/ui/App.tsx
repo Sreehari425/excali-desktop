@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Excalidraw, loadFromBlob, serializeAsJSON } from "@excalidraw/excalidraw";
 import type {
   AppState,
@@ -25,6 +25,7 @@ const drawingFilter = [{ name: "Excalidraw drawing", extensions: ["excalidraw"] 
 
 export default function App() {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
+  const canvasRef = useRef<HTMLElement | null>(null);
   const filePath = useRef<string | null>(null);
   const [fileName, setFileName] = useState("Untitled");
   const [message, setMessage] = useState("");
@@ -36,6 +37,27 @@ export default function App() {
   const sessionSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const sessionSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const syncThemeFromCanvas = () => {
+      const editor = canvas.querySelector(".excalidraw");
+      if (!editor) return;
+      setTheme(editor.classList.contains("theme--dark") ? "dark" : "light");
+    };
+
+    syncThemeFromCanvas();
+    const observer = new MutationObserver(syncThemeFromCanvas);
+    observer.observe(canvas, {
+      attributes: true,
+      attributeFilter: ["class"],
+      childList: true,
+      subtree: true,
+    });
+    return () => observer.disconnect();
+  }, []);
 
   const scheduleSettingsSave = useCallback(() => {
     if (!persistenceReadyRef.current) return;
@@ -226,7 +248,7 @@ export default function App() {
   }, []);
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-theme={theme}>
       <header className="toolbar">
         <div className="brand">Excalidraw <span>Desktop</span></div>
         <div className="file-name" title={fileName}>{fileName}</div>
@@ -238,7 +260,7 @@ export default function App() {
         </nav>
         <span className="status" role="status">{message}</span>
       </header>
-      <section className="canvas" aria-label="Excalidraw canvas">
+      <section className="canvas" aria-label="Excalidraw canvas" ref={canvasRef}>
         <Excalidraw
           initialData={loadEditorSettings}
           theme={theme}

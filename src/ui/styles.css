@@ -13,3 +13,18 @@ button.primary { color: white; border-color: #6965db; background: #6965db; }
 button.primary:hover { background: #5753c5; }
 .status { max-width: 250px; overflow: hidden; color: #696872; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .canvas { flex: 1; min-height: 0; }
+
+.app-shell[data-theme="dark"] .toolbar {
+  border-bottom-color: #2e2e32;
+  background: #121212;
+  color: #e5e5e5;
+}
+.app-shell[data-theme="dark"] .brand span,
+.app-shell[data-theme="dark"] .file-name,
+.app-shell[data-theme="dark"] .status { color: #a1a1aa; }
+.app-shell[data-theme="dark"] .toolbar button:not(.primary) {
+  border-color: #414148;
+  background: #242428;
+  color: #e5e5e5;
+}
+.app-shell[data-theme="dark"] .toolbar button:not(.primary):hover { background: #333338; }
