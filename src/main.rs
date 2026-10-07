@@ -1,4 +1,6 @@
-use std::{convert::Infallible, net::TcpListener as StdTcpListener, sync::Arc, time::Duration};
+use std::{
+    convert::Infallible, net::TcpListener as StdTcpListener, sync::Arc, sync::Mutex, time::Duration,
+};
 
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
@@ -20,6 +22,9 @@ struct CollaborationProxy {
     config: Arc<RwLock<ProxyConfig>>,
 }
 
+#[derive(Default)]
+struct EditorUrl(Mutex<Option<tauri::Url>>);
+
 #[tauri::command]
 fn navigate_to_public_room(app: tauri::AppHandle, url: String) -> Result<(), String> {
     let parsed = reqwest::Url::parse(&url).map_err(|error| error.to_string())?;
@@ -39,7 +44,34 @@ fn navigate_to_public_room(app: tauri::AppHandle, url: String) -> Result<(), Str
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "Main editor window is unavailable".to_string())?;
+    let editor_url = window.url().map_err(|error| error.to_string())?;
+    let editor_url_state = app.state::<EditorUrl>();
+    *editor_url_state
+        .0
+        .lock()
+        .map_err(|error| error.to_string())? = Some(editor_url);
     window.navigate(url).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn return_to_offline_editor(
+    window: tauri::WebviewWindow,
+    editor_url: tauri::State<'_, EditorUrl>,
+) -> Result<(), String> {
+    let current_url = window.url().map_err(|error| error.to_string())?;
+    if current_url.scheme() != "https"
+        || !matches!(current_url.host_str(), Some("excalidraw.com" | "www.excalidraw.com"))
+    {
+        return Err("Can only return to the editor from Excalidraw collaboration".into());
+    }
+
+    let editor_url = editor_url
+        .0
+        .lock()
+        .map_err(|error| error.to_string())?
+        .clone()
+        .ok_or_else(|| "The editor URL was not saved before opening collaboration".to_string())?;
+    window.navigate(editor_url).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -212,11 +244,6 @@ fn start_collaboration_proxy(app: &mut tauri::App) -> Result<(), Box<dyn std::er
 }
 
 fn main() {
-    let offline_editor_url = if cfg!(debug_assertions) {
-        "http://127.0.0.1:1420/"
-    } else {
-        "tauri://localhost/"
-    };
     tauri::Builder::default()
         .runtime(tauri_runtime_cef::Cef::default())
         .plugin(
@@ -235,7 +262,11 @@ fn main() {
                       }} catch (error) {{
                         console.error("Could not apply desktop theme to Excalidraw", error);
                       }}
-                      const returnToOffline = () => {{ location.href = "{offline_editor_url}"; }};
+                      const returnToOffline = () => {{
+                        window.__TAURI_INTERNALS__.invoke("return_to_offline_editor").catch((error) => {{
+                          console.error("Could not return to the desktop editor", error);
+                        }});
+                      }};
                       window.addEventListener("keydown", (event) => {{
                         if (event.ctrlKey && !event.altKey && !event.shiftKey && event.code === "Space") {{
                           event.preventDefault();
@@ -262,17 +293,18 @@ fn main() {
                       }};
                       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", addOfflineButton, {{ once: true }});
                       else addOfflineButton();
-                    }})();"###,
-                    offline_editor_url = offline_editor_url
+                    }})();"###
                 ))
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(EditorUrl::default())
         .setup(start_collaboration_proxy)
         .invoke_handler(tauri::generate_handler![
             configure_collaboration_proxy,
-            navigate_to_public_room
+            navigate_to_public_room,
+            return_to_offline_editor
         ])
         .run(tauri::generate_context!())
         .expect("error while running Excalidraw Desktop");

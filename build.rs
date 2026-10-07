@@ -4,6 +4,7 @@ fn main() {
             tauri_build::AppManifest::new().commands(&[
                 "configure_collaboration_proxy",
                 "navigate_to_public_room",
+                "return_to_offline_editor",
             ]),
         ),
     )

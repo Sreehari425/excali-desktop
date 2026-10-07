@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "public-collaboration-return",
+  "description": "Allow Excalidraw collaboration pages to return to the local editor",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://excalidraw.com", "https://www.excalidraw.com"]
+  },
+  "permissions": ["allow-return-to-offline-editor"]
+}
