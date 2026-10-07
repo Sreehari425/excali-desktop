@@ -2,11 +2,17 @@ import type { AppState, LibraryItems } from "@excalidraw/excalidraw/types";
 
 export const editorSettingsFile = "editor-settings.json";
 export const lastSessionFile = "last-session.excalidraw";
+export const recentFileLimit = 10;
 
 export interface PersistedEditorSettings {
   version: 1;
   appState: Partial<AppState>;
   libraryItems: LibraryItems;
+  recentFiles: string[];
+}
+
+export function addRecentFile(path: string, recentFiles: readonly string[]): string[] {
+  return [path, ...recentFiles.filter((recentPath) => recentPath !== path)].slice(0, recentFileLimit);
 }
 
 // Keep this aligned with Excalidraw's browser-persisted AppState fields. The
@@ -99,9 +105,20 @@ export function parsePersistedEditorSettings(source: string): PersistedEditorSet
     throw new Error("Unsupported or malformed editor settings");
   }
 
+  const recentFiles: string[] = [];
+  if ("recentFiles" in parsed && Array.isArray(parsed.recentFiles)) {
+    for (const path of parsed.recentFiles) {
+      if (typeof path === "string" && path.length > 0 && !recentFiles.includes(path)) {
+        recentFiles.push(path);
+        if (recentFiles.length === recentFileLimit) break;
+      }
+    }
+  }
+
   return {
     version: 1,
     appState: pickPersistedAppState(parsed.appState as Partial<AppState>),
     libraryItems: parsed.libraryItems as LibraryItems,
+    recentFiles,
   };
 }

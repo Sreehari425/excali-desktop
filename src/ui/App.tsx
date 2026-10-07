@@ -16,6 +16,7 @@ import {
   writeTextFile,
 } from "@tauri-apps/plugin-fs";
 import {
+  addRecentFile,
   editorSettingsFile,
   lastSessionFile,
   parsePersistedEditorSettings,
@@ -38,6 +39,14 @@ const drawingFilter = [{ name: "Excalidraw drawing", extensions: ["excalidraw"] 
 const nameFromPath = (path: string) =>
   path.split(/[\\/]/).pop()?.replace(/\.excalidraw$/i, "") || "Untitled";
 
+type PaletteCommand = {
+  id: string;
+  label: string;
+  description: string;
+  keywords: string;
+  run: () => void;
+};
+
 const openPublicRoom = async (url: string) => {
   if (isTauri()) await invoke("navigate_to_public_room", { url });
   else window.open(url, "_blank", "noopener,noreferrer");
@@ -50,6 +59,11 @@ export default function App() {
   const [fileName, setFileName] = useState("Untitled");
   const [message, setMessage] = useState("");
   const [theme, setTheme] = useState<AppState["theme"]>("light");
+  const [recentFiles, setRecentFiles] = useState<string[]>([]);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteView, setPaletteView] = useState<"commands" | "recent">("commands");
+  const [paletteQuery, setPaletteQuery] = useState("");
+  const [paletteActiveIndex, setPaletteActiveIndex] = useState(0);
   const [collabOpen, setCollabOpen] = useState(false);
   const [collabSettings, setCollabSettings] = useState<CollaborationSettings>(publicCollaborationSettings);
   const [collabDraft, setCollabDraft] = useState<CollaborationSettings>(publicCollaborationSettings);
@@ -60,6 +74,8 @@ export default function App() {
   const persistenceReadyRef = useRef(false);
   const appStateRef = useRef<Partial<AppState>>({});
   const libraryItemsRef = useRef<LibraryItems>([]);
+  const recentFilesRef = useRef<string[]>([]);
+  const paletteSearchRef = useRef<HTMLInputElement | null>(null);
   const settingsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -95,6 +111,7 @@ export default function App() {
         version: 1 as const,
         appState: appStateRef.current,
         libraryItems: libraryItemsRef.current,
+        recentFiles: recentFilesRef.current,
       };
       const serialized = JSON.stringify(snapshot);
       settingsSaveQueueRef.current = settingsSaveQueueRef.current
@@ -110,6 +127,13 @@ export default function App() {
         });
     }, 400);
   }, []);
+
+  const recordRecentFile = useCallback((path: string) => {
+    const nextRecentFiles = addRecentFile(path, recentFilesRef.current);
+    recentFilesRef.current = nextRecentFiles;
+    setRecentFiles(nextRecentFiles);
+    scheduleSettingsSave();
+  }, [scheduleSettingsSave]);
 
   const scheduleSessionSave = useCallback(() => {
     if (!persistenceReadyRef.current) return;
@@ -165,6 +189,8 @@ export default function App() {
         const settings = parsePersistedEditorSettings(source);
         appStateRef.current = settings.appState;
         libraryItemsRef.current = settings.libraryItems;
+        recentFilesRef.current = settings.recentFiles;
+        setRecentFiles(settings.recentFiles);
         if (settings.appState.theme === "light" || settings.appState.theme === "dark") {
           setTheme(settings.appState.theme);
         }
@@ -237,16 +263,24 @@ export default function App() {
     scheduleSettingsSave();
   }, [scheduleSettingsSave]);
 
+  const toggleEditorTheme = useCallback(() => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    appStateRef.current = { ...appStateRef.current, theme: nextTheme };
+    apiRef.current?.updateScene({ appState: { theme: nextTheme } });
+    scheduleSettingsSave();
+  }, [scheduleSettingsSave, theme]);
+
   const handleLibraryChange = useCallback((libraryItems: LibraryItems) => {
     if (!persistenceReadyRef.current) return;
     libraryItemsRef.current = libraryItems;
     scheduleSettingsSave();
   }, [scheduleSettingsSave]);
 
-  const openDrawing = useCallback(async () => {
+  const openDrawingFromPath = useCallback(async (path: string) => {
     try {
-      const path = await open({ multiple: false, filters: drawingFilter });
-      if (!path || Array.isArray(path)) return;
+      const api = apiRef.current;
+      if (!api) throw new Error("Editor is not ready");
       const source = await readTextFile(path);
       const restored = await loadFromBlob(
         new Blob([source], { type: "application/json" }),
@@ -254,8 +288,8 @@ export default function App() {
         null,
       );
       const name = nameFromPath(path);
-      const currentTheme = appStateRef.current.theme ?? apiRef.current?.getAppState().theme;
-      apiRef.current?.updateScene({
+      const currentTheme = appStateRef.current.theme ?? api.getAppState().theme;
+      api.updateScene({
         elements: restored.elements,
         appState: {
           ...restored.appState,
@@ -263,33 +297,73 @@ export default function App() {
           name,
         },
       });
-      apiRef.current?.addFiles(Object.values(restored.files));
+      api.addFiles(Object.values(restored.files));
       filePath.current = path;
       setFileName(name);
       setMessage("");
+      recordRecentFile(path);
     } catch (error) {
       setMessage(`Could not open drawing: ${String(error)}`);
     }
+  }, [recordRecentFile]);
+
+  const openDrawing = useCallback(async () => {
+    try {
+      const path = await open({ multiple: false, filters: drawingFilter });
+      if (!path || Array.isArray(path)) return;
+      await openDrawingFromPath(path);
+    } catch (error) {
+      setMessage(`Could not open drawing: ${String(error)}`);
+    }
+  }, [openDrawingFromPath]);
+
+  const openRecentDrawing = useCallback((path: string) => {
+    void openDrawingFromPath(path);
+  }, [openDrawingFromPath]);
+
+  const openCommandPalette = useCallback(() => {
+    setPaletteView("commands");
+    setPaletteQuery("");
+    setPaletteActiveIndex(0);
+    setPaletteOpen(true);
+  }, []);
+
+  const closeCommandPalette = useCallback(() => {
+    setPaletteOpen(false);
+    setPaletteQuery("");
+    setPaletteActiveIndex(0);
   }, []);
 
   useEffect(() => {
-    const handleOpenShortcut = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "o") {
-        return;
-      }
+    if (paletteOpen) paletteSearchRef.current?.focus();
+  }, [paletteOpen, paletteView]);
+
+  useEffect(() => {
+    const handleShortcuts = (event: KeyboardEvent) => {
+      const hasCommandModifier = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
       const target = event.target;
-      if (target instanceof Element && target.closest("input, textarea, select, [contenteditable='true']")) {
+      const isTextEntry = target instanceof Element && Boolean(
+        target.closest("input, textarea, select, [contenteditable='true']"),
+      );
+
+      if (hasCommandModifier && event.shiftKey && !event.altKey && key === "p") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (paletteOpen) closeCommandPalette();
+        else if (!isTextEntry) openCommandPalette();
         return;
       }
 
+      if (paletteOpen || !hasCommandModifier || event.altKey || event.shiftKey || key !== "o" || isTextEntry) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       void openDrawing();
     };
 
-    window.addEventListener("keydown", handleOpenShortcut, true);
-    return () => window.removeEventListener("keydown", handleOpenShortcut, true);
-  }, [openDrawing]);
+    window.addEventListener("keydown", handleShortcuts, true);
+    return () => window.removeEventListener("keydown", handleShortcuts, true);
+  }, [closeCommandPalette, openCommandPalette, openDrawing, paletteOpen]);
 
   const saveDrawing = useCallback(async (saveAs = false) => {
     try {
@@ -315,10 +389,11 @@ export default function App() {
       api.updateScene({ appState: { name } });
       setFileName(name);
       setMessage("Saved");
+      recordRecentFile(path);
     } catch (error) {
       setMessage(`Could not save drawing: ${String(error)}`);
     }
-  }, [fileName]);
+  }, [fileName, recordRecentFile]);
 
   const newDrawing = useCallback(() => {
     apiRef.current?.resetScene();
@@ -427,6 +502,39 @@ export default function App() {
 
   useEffect(() => () => collabConnectionRef.current?.close(), []);
 
+  const paletteCommands: PaletteCommand[] = [
+    { id: "new", label: "New drawing", description: "Start a blank drawing", keywords: "file create blank", run: newDrawing },
+    { id: "open", label: "Open drawing…", description: "Choose an .excalidraw file", keywords: "file browse load", run: () => { void openDrawing(); } },
+    { id: "open-recent", label: "Open Recent", description: "Choose from recently opened or saved drawings", keywords: "file history previous", run: () => {} },
+    { id: "save", label: "Save", description: filePath.current ? `Save ${fileName}` : "Choose where to save this drawing", keywords: "file write", run: () => { void saveDrawing(); } },
+    { id: "save-as", label: "Save As…", description: "Save a copy to a new file", keywords: "file export copy", run: () => { void saveDrawing(true); } },
+    { id: "collaborate", label: "Collaborate", description: "Open collaboration options", keywords: "online room share invite", run: () => setCollabOpen(true) },
+    { id: "theme", label: `Switch to ${theme === "dark" ? "light" : "dark"} theme`, description: "Change the editor appearance", keywords: "appearance color mode", run: toggleEditorTheme },
+  ];
+  const normalizedPaletteQuery = paletteQuery.trim().toLowerCase();
+  const paletteResults: PaletteCommand[] = paletteView === "commands"
+    ? paletteCommands.filter((command) => `${command.label} ${command.description} ${command.keywords}`.toLowerCase().includes(normalizedPaletteQuery))
+    : recentFiles
+      .map((path) => ({
+        id: `recent-${path}`,
+        label: nameFromPath(path),
+        description: path,
+        keywords: path,
+        run: () => openRecentDrawing(path),
+      }))
+      .filter((file) => `${file.label} ${file.description} ${file.keywords}`.toLowerCase().includes(normalizedPaletteQuery));
+  const selectedPaletteResult = paletteResults[paletteActiveIndex];
+  const activatePaletteResult = (item: PaletteCommand) => {
+    if (paletteView === "commands" && item.id === "open-recent") {
+      setPaletteView("recent");
+      setPaletteQuery("");
+      setPaletteActiveIndex(0);
+      return;
+    }
+    closeCommandPalette();
+    item.run();
+  };
+
   return (
     <main className="app-shell" data-theme={theme}>
       <header className="toolbar">
@@ -441,6 +549,80 @@ export default function App() {
         </nav>
         <span className="status" role="status">{message}</span>
       </header>
+      {paletteOpen && <div className="command-palette-backdrop" onClick={(event) => {
+        if (event.target === event.currentTarget) closeCommandPalette();
+      }}>
+        <section className="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-palette-title">
+          <header className="command-palette-heading">
+            {paletteView === "recent" && <button aria-label="Back to commands" onClick={() => {
+              setPaletteView("commands");
+              setPaletteQuery("");
+              setPaletteActiveIndex(0);
+            }}>←</button>}
+            <strong id="command-palette-title">{paletteView === "recent" ? "Open Recent" : "Command palette"}</strong>
+            <button aria-label="Close command palette" onClick={closeCommandPalette}>Esc</button>
+          </header>
+          <input
+            ref={paletteSearchRef}
+            className="command-palette-search"
+            type="text"
+            role="combobox"
+            aria-label={paletteView === "recent" ? "Search recent drawings" : "Search commands"}
+            aria-autocomplete="list"
+            aria-expanded="true"
+            aria-controls="command-palette-results"
+            aria-activedescendant={selectedPaletteResult ? `command-palette-result-${paletteActiveIndex}` : undefined}
+            placeholder={paletteView === "recent" ? "Search recent drawings…" : "Type a command or search…"}
+            value={paletteQuery}
+            onChange={(event) => {
+              setPaletteQuery(event.target.value);
+              setPaletteActiveIndex(0);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown" && paletteResults.length) {
+                event.preventDefault();
+                event.stopPropagation();
+                setPaletteActiveIndex((index) => (index + 1) % paletteResults.length);
+              } else if (event.key === "ArrowUp" && paletteResults.length) {
+                event.preventDefault();
+                event.stopPropagation();
+                setPaletteActiveIndex((index) => (index - 1 + paletteResults.length) % paletteResults.length);
+              } else if (event.key === "Enter") {
+                event.preventDefault();
+                event.stopPropagation();
+                if (selectedPaletteResult) activatePaletteResult(selectedPaletteResult);
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                if (paletteView === "recent") {
+                  setPaletteView("commands");
+                  setPaletteQuery("");
+                  setPaletteActiveIndex(0);
+                } else {
+                  closeCommandPalette();
+                }
+              }
+            }}
+          />
+          <div className="command-palette-results" id="command-palette-results" role="listbox" aria-label={paletteView === "recent" ? "Recent drawings" : "Commands"}>
+            {paletteResults.map((item, index) => <button
+              id={`command-palette-result-${index}`}
+              className={`command-palette-result${index === paletteActiveIndex ? " is-active" : ""}`}
+              key={item.id}
+              type="button"
+              role="option"
+              aria-selected={index === paletteActiveIndex}
+              onMouseEnter={() => setPaletteActiveIndex(index)}
+              onClick={() => activatePaletteResult(item)}
+            >
+              <span><strong>{item.label}</strong><small>{item.description}</small></span>
+              {paletteView === "commands" && item.id === "open-recent" && <kbd>↵</kbd>}
+            </button>)}
+            {!paletteResults.length && <p className="command-palette-empty">{paletteView === "recent" && !recentFiles.length ? "No recent drawings yet. Open or save a drawing to add it here." : "No matching results."}</p>}
+          </div>
+          <footer className="command-palette-footer"><span>↑↓ Navigate</span><span>↵ Select</span><span>Esc {paletteView === "recent" ? "Back" : "Close"}</span></footer>
+        </section>
+      </div>}
       {collabOpen && <section className="collab-panel" aria-label="Collaboration">
         <div className="collab-heading"><strong>Collaborate</strong><button onClick={() => setCollabOpen(false)}>Close</button></div>
         <div className="collab-heading"><p className="collab-status" role="status">{collabStatus}</p>{roomLink && <button onClick={leaveRoom}>Leave room</button>}</div>
