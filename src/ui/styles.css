@@ -195,14 +195,19 @@ button.primary:hover { background: #5753c5; }
   color: #ffffff;
   border-color: #6965db;
 }
-.radial-wheel-ring { display: block; }
+.radial-wheel-ring {
+  display: block;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
 .radial-wheel-frame {
-  fill: #2a2a2ecc;
-  stroke: #1118;
+  fill: #1c1c20;
+  stroke: rgba(255, 255, 255, 0.12);
   stroke-width: 1.5;
 }
 .radial-wheel-sector {
-  fill: #3a3a3ef2;
+  fill: #2d2d33;
   stroke: #1a1a1e88;
   stroke-width: 1;
   transition: fill 80ms ease;
@@ -218,6 +223,7 @@ button.primary:hover { background: #5753c5; }
 
 .radial-wheel-slot {
   position: absolute;
+  z-index: 4;
   width: 40px;
   height: 40px;
   display: flex;
@@ -257,67 +263,59 @@ button.primary:hover { background: #5753c5; }
 .radial-wheel-hub-content {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
 }
 
-.radial-wheel-color-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: #232328f5;
-  border: 1px solid #ffffff1f;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  border-radius: 999px;
-  padding: 3px 8px;
-  backdrop-filter: blur(8px);
+/* Krita-style top-left color target ears (Stroke & Fill) - underlapping the wheel ring */
+.radial-wheel-target-ears {
+  position: absolute;
+  top: 15px;
+  left: 31px;
+  width: 76px;
+  height: 76px;
   pointer-events: auto;
+  z-index: 1; /* Sits underneath the wheel ring (z-index: 2) */
 }
 
-.radial-wheel-color-bar-divider {
-  width: 1px;
-  height: 16px;
-  background: #ffffff1f;
-  margin: 0 1px;
-}
-
-.radial-wheel-target-toggle {
-  display: flex;
-  gap: 2px;
-  background: #18181cb0;
+.radial-wheel-ear-btn {
+  position: absolute;
+  width: 54px;
+  height: 54px;
   border-radius: 999px;
-  padding: 2px;
-  box-shadow: inset 0 0 0 1px #ffffff14;
-}
-
-.radial-wheel-target-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: 0;
-  padding: 2px 7px;
-  border-radius: 999px;
-  color: #a0a0ab;
-  font-size: 10px;
-  font-weight: 600;
+  border: 2px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
-  transition: all 120ms ease;
+  padding: 0;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
-.radial-wheel-target-btn.is-active {
-  background: #6965db;
-  color: #ffffff;
+/* Foreground / Stroke circle (top-right) */
+.radial-wheel-ear-btn.is-stroke {
+  top: 0;
+  left: 22px;
+  z-index: 2;
 }
 
-.radial-wheel-swatch-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1px #fff6, 0 0 0 1px #0004;
+/* Background / Fill circle (bottom-left, overlapping) */
+.radial-wheel-ear-btn.is-fill {
+  top: 22px;
+  left: 0;
+  z-index: 1;
+}
+
+.radial-wheel-ear-btn.is-active {
+  z-index: 3 !important;
+  box-shadow: 0 0 0 2.5px #6965db, 0 4px 14px rgba(0, 0, 0, 0.6);
+  transform: scale(1.05);
+}
+
+.radial-wheel-ear-btn:hover:not(.is-active) {
+  transform: scale(1.03);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .radial-color-wheel-wrapper {
@@ -339,8 +337,15 @@ button.primary:hover { background: #5753c5; }
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
-  padding: 0;
+  justify-content: center;
+  gap: 5px;
+  background: #232328f5;
+  border: 1px solid #ffffff1f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-radius: 999px;
+  padding: 4px 8px;
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
 }
 
 .radial-wheel-pick {
@@ -366,11 +371,11 @@ button.primary:hover { background: #5753c5; }
   filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.14));
 }
 .radial-wheel-container.is-light .radial-wheel-frame {
-  fill: #e0e0e6ee;
-  stroke: rgba(0, 0, 0, 0.08);
+  fill: #e8e8ee;
+  stroke: rgba(0, 0, 0, 0.1);
 }
 .radial-wheel-container.is-light .radial-wheel-sector {
-  fill: #ededf3f7;
+  fill: #f3f3f8;
   stroke: rgba(0, 0, 0, 0.06);
 }
 .radial-wheel-container.is-light .radial-wheel-sector.is-active {
@@ -398,31 +403,20 @@ button.primary:hover { background: #5753c5; }
   border-color: rgba(0, 0, 0, 0.15);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
-.radial-wheel-container.is-light .radial-wheel-target-toggle {
-  background: #ececf0;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+.radial-wheel-container.is-light .radial-wheel-ear-btn {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 3px 10px rgba(0, 0, 0, 0.2);
 }
-.radial-wheel-container.is-light .radial-wheel-target-btn {
-  color: #555562;
+.radial-wheel-container.is-light .radial-wheel-ear-btn.is-active {
+  box-shadow: 0 0 0 2.5px #6965db, 0 4px 14px rgba(0, 0, 0, 0.25);
 }
-.radial-wheel-container.is-light .radial-wheel-target-btn.is-active {
-  background: #6965db;
-  color: #ffffff;
+.radial-wheel-container.is-light .radial-wheel-ear-btn:hover:not(.is-active) {
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.22);
 }
-.radial-wheel-container.is-light .radial-wheel-target-btn:hover:not(.is-active) {
-  color: #1e1e24;
-}
-.radial-wheel-container.is-light .radial-wheel-color-bar {
+.radial-wheel-container.is-light .radial-wheel-quick-picks {
   background: #fffffff5;
   border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
-.radial-wheel-container.is-light .radial-wheel-color-bar-divider {
-  background: rgba(0, 0, 0, 0.1);
-}
-.radial-wheel-container.is-light .radial-wheel-target-toggle {
-  background: #ececf0;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 .radial-wheel-container.is-light .radial-wheel-pick {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.8);
@@ -456,10 +450,10 @@ button.primary:hover { background: #5753c5; }
   border-color: #6965db;
 }
 
-.radial-wheel-container.is-dark .radial-wheel-frame { fill: #1a1a1ee8; }
-.radial-wheel-container.is-dark .radial-wheel-sector { fill: #2d2d33f2; }
-.radial-wheel-container.is-dark .radial-wheel-sector.is-active { fill: #3d3b5cf2; }
-.radial-wheel-container.is-dark .radial-wheel-hub { fill: #151518f7; }
+.radial-wheel-container.is-dark .radial-wheel-frame { fill: #1a1a1e; stroke: rgba(255, 255, 255, 0.12); }
+.radial-wheel-container.is-dark .radial-wheel-sector { fill: #2d2d33; }
+.radial-wheel-container.is-dark .radial-wheel-sector.is-active { fill: #3d3b5c; }
+.radial-wheel-container.is-dark .radial-wheel-hub { fill: #151518; }
 .radial-wheel-container.is-dark .radial-wheel-slot { background: #d8d8de; color: #1b1b20; }
 .app-shell[data-theme="dark"] .collab-panel.radial-settings-panel { border-color: #414148; background: #1c1c20; color: #e5e5e5; }
 

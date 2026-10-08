@@ -110,6 +110,26 @@ export function RadialToolWheel({
             height: RADIAL_WHEEL_SIZE,
           }}
         >
+          {/* Krita-style top-left overlapping color target ears (Stroke & Fill) - underlapping the wheel ring */}
+          <div className="radial-wheel-target-ears" role="group" aria-label="Color targets">
+            <button
+              type="button"
+              className={`radial-wheel-ear-btn is-fill${colorTarget === "fill" ? " is-active" : ""}`}
+              style={swatchStyle(fillColor)}
+              onClick={() => onSetColorTarget("fill")}
+              title="Fill color (Background)"
+              aria-label="Set fill color target"
+            />
+            <button
+              type="button"
+              className={`radial-wheel-ear-btn is-stroke${colorTarget === "stroke" ? " is-active" : ""}`}
+              style={swatchStyle(strokeColor)}
+              onClick={() => onSetColorTarget("stroke")}
+              title="Stroke color (Foreground)"
+              aria-label="Set stroke color target"
+            />
+          </div>
+
           <svg
             className="radial-wheel-ring"
             width={RADIAL_WHEEL_SIZE}
@@ -167,6 +187,7 @@ export function RadialToolWheel({
             );
           })}
 
+          {/* Central hub with only the color wheel */}
           <div className="radial-wheel-hub-content">
             <RadialColorWheel
               color={currentColor}
@@ -176,44 +197,19 @@ export function RadialToolWheel({
           </div>
         </div>
 
-        {/* Floating color shelf: Stroke/Fill toggle + Quick picks */}
-        <div className="radial-wheel-color-bar" role="toolbar" aria-label="Color selection and swatches">
-          <div className="radial-wheel-target-toggle">
+        {/* Color picks dock */}
+        <div className="radial-wheel-quick-picks" role="toolbar" aria-label="Favorite colors">
+          {picks.map((color, index) => (
             <button
+              key={`${color}-${index}`}
               type="button"
-              className={`radial-wheel-target-btn${colorTarget === "stroke" ? " is-active" : ""}`}
-              onClick={() => onSetColorTarget("stroke")}
-              title="Stroke color"
-            >
-              <span className="radial-wheel-swatch-dot" style={swatchStyle(strokeColor)} />
-              <span>Stroke</span>
-            </button>
-            <button
-              type="button"
-              className={`radial-wheel-target-btn${colorTarget === "fill" ? " is-active" : ""}`}
-              onClick={() => onSetColorTarget("fill")}
-              title="Fill color"
-            >
-              <span className="radial-wheel-swatch-dot" style={swatchStyle(fillColor)} />
-              <span>Fill</span>
-            </button>
-          </div>
-
-          <div className="radial-wheel-color-bar-divider" />
-
-          <div className="radial-wheel-quick-picks">
-            {picks.map((color, index) => (
-              <button
-                key={`${color}-${index}`}
-                type="button"
-                className="radial-wheel-pick"
-                style={swatchStyle(color)}
-                title={color}
-                aria-label={`Use color ${color}`}
-                onClick={() => onSelectColor(color, false)}
-              />
-            ))}
-          </div>
+              className="radial-wheel-pick"
+              style={swatchStyle(color)}
+              title={color}
+              aria-label={`Use color ${color}`}
+              onClick={() => onSelectColor(color, false)}
+            />
+          ))}
         </div>
 
         {/* Krita-inspired floating bottom quick-bar */}

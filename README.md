@@ -6,7 +6,8 @@ This project packages the original [Excalidraw project](https://github.com/excal
 
 ![Excalidraw Desktop preview](docs/screenshot.png)
 
-> **Warning:** This is a hobby/experimental project. It has not been thoroughly tested, and data loss or other bugs are possible. Do not rely on it for critical work. Keep separate backups of important drawings.
+> [!WARNING]
+> This is a hobby/experimental project. It has not been thoroughly tested, and data loss or other bugs are possible. Do not rely on it for critical work. Keep separate backups of important drawings.
 
 ## What it does
 
