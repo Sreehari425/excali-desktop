@@ -337,12 +337,91 @@ button.primary:hover { background: #5753c5; }
   transform: scale(1.2);
 }
 
-.app-shell[data-theme="light"] .radial-wheel-frame { fill: #2f3036e6; }
-.app-shell[data-theme="dark"] .radial-wheel-frame { fill: #1a1a1ee8; }
-.app-shell[data-theme="dark"] .radial-wheel-sector { fill: #2d2d33f2; }
-.app-shell[data-theme="dark"] .radial-wheel-sector.is-active { fill: #3d3b5cf2; }
-.app-shell[data-theme="dark"] .radial-wheel-hub { fill: #151518f7; }
-.app-shell[data-theme="dark"] .radial-wheel-slot { background: #d8d8de; color: #1b1b20; }
+/* Theme variations for radial wheel */
+.radial-wheel-container.is-light .radial-wheel {
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.14));
+}
+.radial-wheel-container.is-light .radial-wheel-frame {
+  fill: #e0e0e6ee;
+  stroke: rgba(0, 0, 0, 0.08);
+}
+.radial-wheel-container.is-light .radial-wheel-sector {
+  fill: #ededf3f7;
+  stroke: rgba(0, 0, 0, 0.06);
+}
+.radial-wheel-container.is-light .radial-wheel-sector.is-active {
+  fill: #d5d3f2;
+}
+.radial-wheel-container.is-light .radial-wheel-hub {
+  fill: #fdfdfefa;
+  stroke: rgba(0, 0, 0, 0.08);
+}
+.radial-wheel-container.is-light .radial-wheel-slot {
+  background: #ffffff;
+  color: #1e1e24;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.radial-wheel-container.is-light .radial-wheel-slot:hover {
+  background: #f5f5ff;
+  box-shadow: 0 0 0 2px #6965db, 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+.radial-wheel-container.is-light .radial-wheel-slot.is-active {
+  box-shadow: inset 0 0 0 2px #6965db;
+}
+.radial-wheel-container.is-light .radial-wheel-shortcut {
+  color: #8c8c99;
+}
+.radial-wheel-container.is-light .radial-wheel-target-toggle {
+  background: #ececf0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.radial-wheel-container.is-light .radial-wheel-target-btn {
+  color: #555562;
+}
+.radial-wheel-container.is-light .radial-wheel-target-btn.is-active {
+  background: #6965db;
+  color: #ffffff;
+}
+.radial-wheel-container.is-light .radial-wheel-target-btn:hover:not(.is-active) {
+  color: #1e1e24;
+}
+.radial-wheel-container.is-light .radial-wheel-pick {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.radial-wheel-container.is-light .radial-wheel-quickbar {
+  background: #fffffff5;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+.radial-wheel-container.is-light .radial-wheel-quickbar-btn {
+  color: #484854;
+}
+.radial-wheel-container.is-light .radial-wheel-quickbar-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #18181f;
+}
+.radial-wheel-container.is-light .radial-wheel-quickbar-divider {
+  background: rgba(0, 0, 0, 0.1);
+}
+.radial-wheel-container.is-light .radial-wheel-quickbar-slider {
+  background: #cfcfe0;
+}
+.radial-wheel-container.is-light .radial-wheel-quickbar-zoom-btn {
+  background: #f0f0f4;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #33333a;
+}
+.radial-wheel-container.is-light .radial-wheel-quickbar-zoom-btn:hover {
+  background: #6965db;
+  color: #ffffff;
+  border-color: #6965db;
+}
+
+.radial-wheel-container.is-dark .radial-wheel-frame { fill: #1a1a1ee8; }
+.radial-wheel-container.is-dark .radial-wheel-sector { fill: #2d2d33f2; }
+.radial-wheel-container.is-dark .radial-wheel-sector.is-active { fill: #3d3b5cf2; }
+.radial-wheel-container.is-dark .radial-wheel-hub { fill: #151518f7; }
+.radial-wheel-container.is-dark .radial-wheel-slot { background: #d8d8de; color: #1b1b20; }
 .app-shell[data-theme="dark"] .collab-panel.radial-settings-panel { border-color: #414148; background: #1c1c20; color: #e5e5e5; }
 
 @media (max-width: 640px) {

@@ -18,6 +18,7 @@ type RadialToolWheelProps = {
   open: boolean;
   x: number;
   y: number;
+  theme?: "light" | "dark";
   slots: readonly RadialWheelSlot[];
   activeTool: ToolType | null;
   strokeColor: string;
@@ -54,6 +55,7 @@ export function RadialToolWheel({
   open,
   x,
   y,
+  theme,
   slots,
   activeTool,
   strokeColor,
@@ -90,7 +92,7 @@ export function RadialToolWheel({
         onClick={onDismiss}
       />
       <div
-        className="radial-wheel-container"
+        className={`radial-wheel-container is-${theme ?? "dark"}`}
         style={{
           left: x - RADIAL_WHEEL_SIZE / 2,
           top: y - RADIAL_WHEEL_SIZE / 2,

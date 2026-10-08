@@ -8,6 +8,7 @@ import {
   type RefObject,
 } from "react";
 import type { AppState, ExcalidrawImperativeAPI, ToolType } from "@excalidraw/excalidraw/types";
+import { applyDarkModeFilter, removeDarkModeFilter } from "@excalidraw/common";
 import type { ColorTarget } from "./RadialToolWheel";
 import {
   FALLBACK_COLOR_PICKS,
@@ -46,7 +47,18 @@ type UseRadialWheelControllerArgs = {
   canvasRef: RefObject<HTMLElement | null>;
   apiRef: RefObject<ExcalidrawImperativeAPI | null>;
   appStateRef: MutableRefObject<Partial<AppState>>;
+  theme?: AppState["theme"];
 };
+
+function toVisualColor(color: string, isDark: boolean): string {
+  if (!color || color === "transparent") return color;
+  return isDark ? applyDarkModeFilter(color) : color;
+}
+
+function toExcalidrawColor(visualColor: string, isDark: boolean): string {
+  if (!visualColor || visualColor === "transparent") return visualColor;
+  return isDark ? removeDarkModeFilter(visualColor) : visualColor;
+}
 
 function isTextEntryTarget(target: EventTarget | null): boolean {
   return (
@@ -81,6 +93,7 @@ export function useRadialWheelController({
   canvasRef,
   apiRef,
   appStateRef,
+  theme,
 }: UseRadialWheelControllerArgs): RadialWheelControllerState {
   const [open, setOpen] = useState(false);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
@@ -101,6 +114,15 @@ export function useRadialWheelController({
   const colorTargetRef = useRef(colorTarget);
   const slots = useMemo(() => resolveRadialSlots(preferences.slots), [preferences.slots]);
 
+  const getIsDark = useCallback(() => {
+    const currentTheme =
+      theme ??
+      apiRef.current?.getAppState()?.theme ??
+      appStateRef.current.theme ??
+      "light";
+    return currentTheme === "dark";
+  }, [apiRef, appStateRef, theme]);
+
   useEffect(() => {
     openRef.current = open;
   }, [open]);
@@ -114,11 +136,22 @@ export function useRadialWheelController({
   const syncColorsFromAppState = useCallback(() => {
     const api = apiRef.current;
     const state = api?.getAppState() ?? appStateRef.current;
-    const strokeColor = state.currentItemStrokeColor ?? "#1e1e1e";
-    const fillColor = state.currentItemBackgroundColor ?? "transparent";
-    const colorPicks = resolveColorPicks(state, colorTargetRef.current);
+    const isDark = getIsDark();
+    const rawStroke = state.currentItemStrokeColor ?? (isDark ? "#ffffff" : "#1e1e1e");
+    const rawFill = state.currentItemBackgroundColor ?? "transparent";
+    const strokeColor = toVisualColor(rawStroke, isDark);
+    const fillColor = toVisualColor(rawFill, isDark);
+    const rawPicks = resolveColorPicks(state, colorTargetRef.current);
+    const colorPicks = rawPicks.map((c) => toVisualColor(c, isDark));
     setColorSnapshot({ strokeColor, fillColor, colorPicks });
-  }, [apiRef, appStateRef]);
+  }, [apiRef, appStateRef, getIsDark]);
+
+  // Resync colors if theme changes
+  useEffect(() => {
+    if (openRef.current) {
+      syncColorsFromAppState();
+    }
+  }, [theme, syncColorsFromAppState]);
 
   const dismiss = useCallback(() => {
     setOpen(false);
@@ -158,23 +191,49 @@ export function useRadialWheelController({
   );
 
   const selectColor = useCallback(
-    (color: string, autoDismiss = false) => {
+    (visualColor: string, autoDismiss = false) => {
       const api = apiRef.current;
       if (!api) return;
+      const state = api.getAppState();
+      const isDark = getIsDark();
+      const color = toExcalidrawColor(visualColor, isDark);
+      const selectedIds = state.selectedElementIds || {};
+      const hasSelection = Object.values(selectedIds).some(Boolean);
+
       if (colorTargetRef.current === "stroke") {
-        api.updateScene({ appState: { currentItemStrokeColor: color } });
+        if (hasSelection) {
+          const elements = api.getSceneElements().map((el) => {
+            if (selectedIds[el.id]) {
+              return { ...el, strokeColor: color };
+            }
+            return el;
+          });
+          api.updateScene({ elements, appState: { currentItemStrokeColor: color } });
+        } else {
+          api.updateScene({ appState: { currentItemStrokeColor: color } });
+        }
         appStateRef.current = { ...appStateRef.current, currentItemStrokeColor: color };
-        setColorSnapshot((prev) => ({ ...prev, strokeColor: color }));
+        setColorSnapshot((prev) => ({ ...prev, strokeColor: visualColor }));
       } else {
-        api.updateScene({ appState: { currentItemBackgroundColor: color } });
+        if (hasSelection) {
+          const elements = api.getSceneElements().map((el) => {
+            if (selectedIds[el.id]) {
+              return { ...el, backgroundColor: color };
+            }
+            return el;
+          });
+          api.updateScene({ elements, appState: { currentItemBackgroundColor: color } });
+        } else {
+          api.updateScene({ appState: { currentItemBackgroundColor: color } });
+        }
         appStateRef.current = { ...appStateRef.current, currentItemBackgroundColor: color };
-        setColorSnapshot((prev) => ({ ...prev, fillColor: color }));
+        setColorSnapshot((prev) => ({ ...prev, fillColor: visualColor }));
       }
       if (autoDismiss) {
         dismiss();
       }
     },
-    [apiRef, appStateRef, dismiss],
+    [apiRef, appStateRef, dismiss, getIsDark],
   );
 
   const setColorTarget = useCallback(

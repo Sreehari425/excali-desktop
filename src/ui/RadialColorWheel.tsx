@@ -72,16 +72,20 @@ export function hsvToRgb(h: number, s: number, v: number): [number, number, numb
     r = x;
     g = c;
   } else if (hh >= 2 && hh < 3) {
+    r = 0;
     g = c;
     b = x;
   } else if (hh >= 3 && hh < 4) {
+    r = 0;
     g = x;
     b = c;
   } else if (hh >= 4 && hh < 5) {
     r = x;
+    g = 0;
     b = c;
   } else {
     r = c;
+    g = 0;
     b = x;
   }
 
@@ -114,7 +118,7 @@ function getTriangleVertices(cx: number, cy: number, radius: number, hueDeg: num
     x: cx + radius * Math.cos(rad + (2 * Math.PI) / 3),
     y: cy + radius * Math.sin(rad + (2 * Math.PI) / 3),
   };
-  // Black vertex at angle - 120 deg (or + 240 deg)
+  // Black vertex at angle - 120 deg
   const pBlack: Point = {
     x: cx + radius * Math.cos(rad - (2 * Math.PI) / 3),
     y: cy + radius * Math.sin(rad - (2 * Math.PI) / 3),
@@ -122,7 +126,7 @@ function getTriangleVertices(cx: number, cy: number, radius: number, hueDeg: num
   return { pPure, pWhite, pBlack };
 }
 
-// Compute barycentric coordinates of point P relative to triangle A, B, C
+// Compute barycentric coordinates of point P relative to triangle A (pure), B (white), C (black)
 function barycentric(p: Point, a: Point, b: Point, c: Point): [number, number, number] {
   const v0 = { x: b.x - a.x, y: b.y - a.y };
   const v1 = { x: c.x - a.x, y: c.y - a.y };
@@ -137,14 +141,14 @@ function barycentric(p: Point, a: Point, b: Point, c: Point): [number, number, n
   const v = (d11 * d20 - d01 * d21) / denom;
   const w = (d00 * d21 - d01 * d20) / denom;
   const u = 1.0 - v - w;
-  return [u, v, w]; // [weightA (pure), weightB (white), weightC (black)]
+  return [u, v, w]; // [weightPure, weightWhite, weightBlack]
 }
 
 // Project arbitrary barycentric weights into the valid triangle simplex
 function clampBarycentric(wPure: number, wWhite: number, wBlack: number): [number, number, number] {
-  let u = Math.max(0, wPure);
-  let v = Math.max(0, wWhite);
-  let w = Math.max(0, wBlack);
+  const u = Math.max(0, wPure);
+  const v = Math.max(0, wWhite);
+  const w = Math.max(0, wBlack);
   const sum = u + v + w;
   if (sum < 1e-6) return [0, 0, 1]; // default black
   return [u / sum, v / sum, w / sum];
@@ -239,46 +243,58 @@ export function RadialColorWheel({ color, size = 116, onChange }: RadialColorWhe
     ctx.stroke();
     ctx.restore();
 
-    // 3. Draw Rotated Color Triangle
+    // 3. Draw Rotated Color Triangle (Exact Barycentric Rasterization)
     const { pPure, pWhite, pBlack } = getTriangleVertices(cx, cy, rTri, hsv.h);
+    const [rP, gP, bP] = hsvToRgb(hsv.h, 1, 1);
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(pPure.x, pPure.y);
-    ctx.lineTo(pWhite.x, pWhite.y);
-    ctx.lineTo(pBlack.x, pBlack.y);
-    ctx.closePath();
-    ctx.clip();
+    const minX = Math.max(0, Math.floor(Math.min(pPure.x, pWhite.x, pBlack.x)));
+    const maxX = Math.min(size - 1, Math.ceil(Math.max(pPure.x, pWhite.x, pBlack.x)));
+    const minY = Math.max(0, Math.floor(Math.min(pPure.y, pWhite.y, pBlack.y)));
+    const maxY = Math.min(size - 1, Math.ceil(Math.max(pPure.y, pWhite.y, pBlack.y)));
+    const boxW = maxX - minX + 1;
+    const boxH = maxY - minY + 1;
 
-    // Draw triangle gradient
-    // Layer A: Base pure hue color
-    ctx.fillStyle = `hsl(${hsv.h}, 100%, 50%)`;
-    ctx.fillRect(0, 0, size, size);
+    if (boxW > 0 && boxH > 0) {
+      const imgData = ctx.createImageData(boxW, boxH);
+      const data = imgData.data;
 
-    // Layer B: White gradient from pWhite
-    const gradWhite = ctx.createLinearGradient(
-      pWhite.x,
-      pWhite.y,
-      (pPure.x + pBlack.x) / 2,
-      (pPure.y + pBlack.y) / 2,
-    );
-    gradWhite.addColorStop(0, "rgba(255,255,255,1)");
-    gradWhite.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = gradWhite;
-    ctx.fillRect(0, 0, size, size);
+      for (let py = minY; py <= maxY; py++) {
+        for (let px = minX; px <= maxX; px++) {
+          const [wP, wW, wB] = barycentric({ x: px + 0.5, y: py + 0.5 }, pPure, pWhite, pBlack);
+          // Check if inside triangle
+          if (wP >= -0.01 && wW >= -0.01 && wB >= -0.01) {
+            const [cwP, cwW] = clampBarycentric(wP, wW, wB);
+            const r = Math.round(cwP * rP + cwW * 255);
+            const g = Math.round(cwP * gP + cwW * 255);
+            const b = Math.round(cwP * bP + cwW * 255);
+            const idx = ((py - minY) * boxW + (px - minX)) * 4;
+            data[idx] = r;
+            data[idx + 1] = g;
+            data[idx + 2] = b;
+            data[idx + 3] = 255;
+          }
+        }
+      }
 
-    // Layer C: Black gradient from pBlack
-    const gradBlack = ctx.createLinearGradient(
-      pBlack.x,
-      pBlack.y,
-      (pPure.x + pWhite.x) / 2,
-      (pPure.y + pWhite.y) / 2,
-    );
-    gradBlack.addColorStop(0, "rgba(0,0,0,1)");
-    gradBlack.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = gradBlack;
-    ctx.fillRect(0, 0, size, size);
-    ctx.restore();
+      ctx.save();
+      // Clip to crisp triangle path for anti-aliasing
+      ctx.beginPath();
+      ctx.moveTo(pPure.x, pPure.y);
+      ctx.lineTo(pWhite.x, pWhite.y);
+      ctx.lineTo(pBlack.x, pBlack.y);
+      ctx.closePath();
+      ctx.clip();
+
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = boxW;
+      tempCanvas.height = boxH;
+      const tempCtx = tempCanvas.getContext("2d");
+      if (tempCtx) {
+        tempCtx.putImageData(imgData, 0, 0);
+        ctx.drawImage(tempCanvas, minX, minY);
+      }
+      ctx.restore();
+    }
 
     // Triangle outline
     ctx.save();
@@ -333,8 +349,10 @@ export function RadialColorWheel({ color, size = 116, onChange }: RadialColorWhe
         const [wP, wW, wB] = barycentric({ x: px, y: py }, pPure, pWhite, pBlack);
         const [cwP, cwW, cwB] = clampBarycentric(wP, wW, wB);
         // Compute S, V from clamped barycentric weights
-        const v = 1 - cwB;
-        const s = v <= 1e-4 ? 0 : Math.min(1, cwP / v);
+        // Value: 1 - weightBlack (so at black corner, V = 0; at white/pure, V = 1)
+        const v = Math.max(0, Math.min(1, 1 - cwB));
+        // Saturation: weightPure / (weightPure + weightWhite) = weightPure / V
+        const s = v <= 1e-4 ? 0 : Math.max(0, Math.min(1, cwP / v));
         const next: HSV = { h: hsvRef.current.h, s, v };
         setHsv(next);
         onChange(hsvToHex(next.h, next.s, next.v));

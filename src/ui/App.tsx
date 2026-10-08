@@ -100,6 +100,7 @@ export default function App() {
     canvasRef,
     apiRef,
     appStateRef,
+    theme,
   });
 
   useEffect(() => {
@@ -799,6 +800,7 @@ export default function App() {
         open={radialWheel.open}
         x={radialWheel.x}
         y={radialWheel.y}
+        theme={theme}
         slots={radialWheel.slots}
         activeTool={radialWheel.activeTool}
         strokeColor={radialWheel.strokeColor}
