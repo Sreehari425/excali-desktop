@@ -9,6 +9,7 @@ This project packages the original [Excalidraw project](https://github.com/excal
 ## What it does
 
 - Draw and edit Excalidraw diagrams locally. Basic editing and locally saved drawings work without an internet connection.
+- Radial tool & color wheel with quick canvas actions (toggle with Right-click, stylus button, or `` ` ``).
 - Use a mouse, touch input, or a stylus/pen supported by your operating system, hardware, and drivers. The app renders through its bundled CEF runtime rather than the system webview; pressure and other device-specific behavior may vary.
 - Open and save `.excalidraw` files, use Save As, and reopen recent files.
 - Autosave the current session, editor preferences, theme, and recent-file list to the app's local data directory.
