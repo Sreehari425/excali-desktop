@@ -258,14 +258,16 @@ button.primary:hover { background: #5753c5; }
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
   pointer-events: none;
 }
 
 .radial-wheel-target-toggle {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   gap: 2px;
   background: #18181cc0;
@@ -273,6 +275,7 @@ button.primary:hover { background: #5753c5; }
   padding: 2px 3px;
   pointer-events: auto;
   box-shadow: inset 0 0 0 1px #ffffff18;
+  z-index: 2;
 }
 
 .radial-wheel-target-btn {
@@ -318,12 +321,16 @@ button.primary:hover { background: #5753c5; }
 }
 
 .radial-wheel-quick-picks {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 3px;
-  max-width: 120px;
   pointer-events: auto;
+  z-index: 2;
 }
 
 .radial-wheel-pick {
