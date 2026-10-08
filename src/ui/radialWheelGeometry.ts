@@ -63,10 +63,11 @@ export function clampWheelPosition(
   viewportHeight = typeof window !== "undefined" ? window.innerHeight : 720,
 ): { x: number; y: number } {
   const half = RADIAL_WHEEL_SIZE / 2;
-  const margin = 8;
+  const margin = 12;
+  const bottomExtra = 56; // floating quick-bar height & margin
   return {
     x: Math.min(viewportWidth - half - margin, Math.max(half + margin, clientX)),
-    y: Math.min(viewportHeight - half - margin, Math.max(half + margin, clientY)),
+    y: Math.min(viewportHeight - half - margin - bottomExtra, Math.max(half + margin, clientY)),
   };
 }
 

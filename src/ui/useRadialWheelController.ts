@@ -27,9 +27,16 @@ export type RadialWheelControllerState = {
   slots: ReturnType<typeof resolveRadialSlots>;
   activeTool: ToolType | null;
   lastPenButton: number | null;
+  zoom: number;
   selectTool: (type: ToolType) => void;
   selectColor: (color: string, autoDismiss?: boolean) => void;
   setColorTarget: (target: ColorTarget) => void;
+  setZoom: (zoomValue: number) => void;
+  resetZoom: () => void;
+  fitContent: () => void;
+  deleteSelected: () => void;
+  undo: () => void;
+  redo: () => void;
   dismiss: () => void;
 };
 
@@ -86,6 +93,8 @@ export function useRadialWheelController({
     colorPicks: [...FALLBACK_COLOR_PICKS] as string[],
   });
 
+  const [zoom, setZoomState] = useState(1.0);
+
   const openRef = useRef(false);
   const lastPointerRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const preferencesRef = useRef(preferences);
@@ -121,6 +130,7 @@ export function useRadialWheelController({
       const clamped = clampWheelPosition(clientX, clientY);
       const state = apiRef.current?.getAppState() ?? appStateRef.current;
       setActiveTool((state.activeTool?.type as ToolType | undefined) ?? null);
+      setZoomState(state.zoom?.value ?? 1.0);
       syncColorsFromAppState();
       setOrigin(clamped);
       setOpen(true);
@@ -178,6 +188,96 @@ export function useRadialWheelController({
     },
     [appStateRef],
   );
+
+  const setZoom = useCallback(
+    (zoomValue: number) => {
+      const api = apiRef.current;
+      if (!api) return;
+      const clamped = Math.min(5, Math.max(0.1, zoomValue));
+      api.updateScene({ appState: { zoom: { value: clamped as any } } });
+      setZoomState(clamped);
+    },
+    [apiRef],
+  );
+
+  const resetZoom = useCallback(() => {
+    setZoom(1.0);
+  }, [setZoom]);
+
+  const fitContent = useCallback(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    const elements = api.getSceneElements().filter((el) => !el.isDeleted);
+    if (elements.length === 0) {
+      api.updateScene({ appState: { scrollX: 0, scrollY: 0, zoom: { value: 1 as any } } });
+      setZoomState(1.0);
+      return;
+    }
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const el of elements) {
+      minX = Math.min(minX, el.x);
+      minY = Math.min(minY, el.y);
+      maxX = Math.max(maxX, el.x + el.width);
+      maxY = Math.max(maxY, el.y + el.height);
+    }
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const padding = 60;
+    const zoomX = (viewportWidth - padding * 2) / Math.max(width, 100);
+    const zoomY = (viewportHeight - padding * 2) / Math.max(height, 100);
+    const fitZoom = Math.min(2, Math.max(0.2, Math.min(zoomX, zoomY)));
+    const centerX = minX + width / 2;
+    const centerY = minY + height / 2;
+    const scrollX = viewportWidth / 2 / fitZoom - centerX;
+    const scrollY = viewportHeight / 2 / fitZoom - centerY;
+
+    api.updateScene({
+      appState: {
+        scrollX,
+        scrollY,
+        zoom: { value: fitZoom as any },
+      },
+    });
+    setZoomState(fitZoom);
+  }, [apiRef]);
+
+  const deleteSelected = useCallback(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    const state = api.getAppState();
+    const selectedIds = state.selectedElementIds || {};
+    const hasSelection = Object.values(selectedIds).some(Boolean);
+    if (hasSelection) {
+      const elements = api.getSceneElements().map((el) => {
+        if (selectedIds[el.id]) {
+          return { ...el, isDeleted: true };
+        }
+        return el;
+      });
+      api.updateScene({ elements, appState: { selectedElementIds: {} } });
+    } else {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Delete", code: "Delete", bubbles: true }),
+      );
+    }
+  }, [apiRef]);
+
+  const undo = useCallback(() => {
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "z", code: "KeyZ", ctrlKey: true, bubbles: true }),
+    );
+  }, []);
+
+  const redo = useCallback(() => {
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "y", code: "KeyY", ctrlKey: true, bubbles: true }),
+    );
+  }, []);
 
   // Track cursor so the wheel can open where you're pointing.
   useEffect(() => {
@@ -273,9 +373,16 @@ export function useRadialWheelController({
     slots,
     activeTool,
     lastPenButton,
+    zoom,
     selectTool,
     selectColor,
     setColorTarget,
+    setZoom,
+    resetZoom,
+    fitContent,
+    deleteSelected,
+    undo,
+    redo,
     dismiss,
   };
 }

@@ -13,7 +13,7 @@ This project packages the original [Excalidraw project](https://github.com/excal
 - Open and save `.excalidraw` files, use Save As, and reopen recent files.
 - Autosave the current session, editor preferences, theme, and recent-file list to the app's local data directory.
 - Use Excalidraw's drawing tools, library, and light/dark themes.
-- Open the command palette with `Ctrl/Cmd + K` and open a drawing with `Ctrl/Cmd + O`.
+- Open the command palette with `Ctrl/Cmd + SPACE` and open a drawing with `Ctrl/Cmd + O`.
 
 > **Note:** Collaboration is supported through [Excalidraw](https://excalidraw.com) and requires an internet connection.
 

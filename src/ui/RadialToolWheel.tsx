@@ -24,9 +24,16 @@ type RadialToolWheelProps = {
   fillColor: string;
   colorTarget: ColorTarget;
   colorPicks: readonly string[];
+  zoom: number;
   onSelectTool: (type: ToolType) => void;
   onSelectColor: (color: string, autoDismiss?: boolean) => void;
   onSetColorTarget: (target: ColorTarget) => void;
+  onSetZoom: (zoom: number) => void;
+  onResetZoom: () => void;
+  onFitContent: () => void;
+  onDeleteSelected: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
   onDismiss: () => void;
 };
 
@@ -53,9 +60,16 @@ export function RadialToolWheel({
   fillColor,
   colorTarget,
   colorPicks,
+  zoom,
   onSelectTool,
   onSelectColor,
   onSetColorTarget,
+  onSetZoom,
+  onResetZoom,
+  onFitContent,
+  onDeleteSelected,
+  onUndo,
+  onRedo,
   onDismiss,
 }: RadialToolWheelProps) {
   if (!open) return null;
@@ -65,6 +79,7 @@ export function RadialToolWheel({
   const count = slots.length;
   const picks = (colorPicks.length ? colorPicks : FALLBACK_COLOR_PICKS).slice(0, 7);
   const currentColor = colorTarget === "stroke" ? strokeColor : fillColor;
+  const zoomPercent = Math.round(zoom * 100);
 
   return (
     <div className="radial-wheel-layer" role="presentation">
@@ -75,116 +90,201 @@ export function RadialToolWheel({
         onClick={onDismiss}
       />
       <div
-        className="radial-wheel"
-        role="menu"
-        aria-label="Tool wheel"
+        className="radial-wheel-container"
         style={{
-          width: RADIAL_WHEEL_SIZE,
-          height: RADIAL_WHEEL_SIZE,
           left: x - RADIAL_WHEEL_SIZE / 2,
           top: y - RADIAL_WHEEL_SIZE / 2,
+          width: RADIAL_WHEEL_SIZE,
         }}
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <svg
-          className="radial-wheel-ring"
-          width={RADIAL_WHEEL_SIZE}
-          height={RADIAL_WHEEL_SIZE}
-          viewBox={`0 0 ${RADIAL_WHEEL_SIZE} ${RADIAL_WHEEL_SIZE}`}
+        <div
+          className="radial-wheel"
+          role="menu"
+          aria-label="Tool wheel"
+          style={{
+            width: RADIAL_WHEEL_SIZE,
+            height: RADIAL_WHEEL_SIZE,
+          }}
         >
-          <circle
-            className="radial-wheel-frame"
-            cx={cx}
-            cy={cy}
-            r={RADIAL_WHEEL_OUTER_RADIUS}
-          />
+          <svg
+            className="radial-wheel-ring"
+            width={RADIAL_WHEEL_SIZE}
+            height={RADIAL_WHEEL_SIZE}
+            viewBox={`0 0 ${RADIAL_WHEEL_SIZE} ${RADIAL_WHEEL_SIZE}`}
+          >
+            <circle
+              className="radial-wheel-frame"
+              cx={cx}
+              cy={cy}
+              r={RADIAL_WHEEL_OUTER_RADIUS}
+            />
+            {slots.map((slot, index) => {
+              const { start, end } = sectorAngles(index, count);
+              const active = slot.type === activeTool;
+              return (
+                <path
+                  key={`sector-${slot.type}`}
+                  className={`radial-wheel-sector${active ? " is-active" : ""}`}
+                  d={describeArc(
+                    cx,
+                    cy,
+                    RADIAL_WHEEL_INNER_RADIUS,
+                    RADIAL_WHEEL_OUTER_RADIUS,
+                    start,
+                    end,
+                  )}
+                />
+              );
+            })}
+            <circle
+              className="radial-wheel-hub"
+              cx={cx}
+              cy={cy}
+              r={RADIAL_WHEEL_HUB_RADIUS}
+            />
+          </svg>
+
           {slots.map((slot, index) => {
-            const { start, end } = sectorAngles(index, count);
+            const pos = iconPosition(index, count, cx, cy);
             const active = slot.type === activeTool;
             return (
-              <path
-                key={`sector-${slot.type}`}
-                className={`radial-wheel-sector${active ? " is-active" : ""}`}
-                d={describeArc(
-                  cx,
-                  cy,
-                  RADIAL_WHEEL_INNER_RADIUS,
-                  RADIAL_WHEEL_OUTER_RADIUS,
-                  start,
-                  end,
-                )}
-              />
+              <button
+                key={`slot-${slot.type}`}
+                type="button"
+                role="menuitem"
+                className={`radial-wheel-slot${active ? " is-active" : ""}`}
+                style={{ left: pos.x, top: pos.y }}
+                title={`${slot.label} (${slot.shortcut})`}
+                onClick={() => onSelectTool(slot.type)}
+              >
+                <RadialToolIcon type={slot.type} />
+                <span className="radial-wheel-shortcut">{slot.shortcut}</span>
+              </button>
             );
           })}
-          <circle
-            className="radial-wheel-hub"
-            cx={cx}
-            cy={cy}
-            r={RADIAL_WHEEL_HUB_RADIUS}
-          />
-        </svg>
 
-        {slots.map((slot, index) => {
-          const pos = iconPosition(index, count, cx, cy);
-          const active = slot.type === activeTool;
-          return (
-            <button
-              key={`slot-${slot.type}`}
-              type="button"
-              role="menuitem"
-              className={`radial-wheel-slot${active ? " is-active" : ""}`}
-              style={{ left: pos.x, top: pos.y }}
-              title={`${slot.label} (${slot.shortcut})`}
-              onClick={() => onSelectTool(slot.type)}
-            >
-              <RadialToolIcon type={slot.type} />
-              <span className="radial-wheel-shortcut">{slot.shortcut}</span>
-            </button>
-          );
-        })}
-
-        <div className="radial-wheel-hub-content">
-          <div className="radial-wheel-target-toggle">
-            <button
-              type="button"
-              className={`radial-wheel-target-btn${colorTarget === "stroke" ? " is-active" : ""}`}
-              onClick={() => onSetColorTarget("stroke")}
-              title="Stroke color"
-            >
-              <span className="radial-wheel-swatch-dot" style={swatchStyle(strokeColor)} />
-              <span>Stroke</span>
-            </button>
-            <button
-              type="button"
-              className={`radial-wheel-target-btn${colorTarget === "fill" ? " is-active" : ""}`}
-              onClick={() => onSetColorTarget("fill")}
-              title="Fill color"
-            >
-              <span className="radial-wheel-swatch-dot" style={swatchStyle(fillColor)} />
-              <span>Fill</span>
-            </button>
-          </div>
-
-          <RadialColorWheel
-            color={currentColor}
-            size={120}
-            onChange={(hex) => onSelectColor(hex, false)}
-          />
-
-          <div className="radial-wheel-quick-picks">
-            {picks.map((color, index) => (
+          <div className="radial-wheel-hub-content">
+            <div className="radial-wheel-target-toggle">
               <button
-                key={`${color}-${index}`}
                 type="button"
-                className="radial-wheel-pick"
-                style={swatchStyle(color)}
-                title={color}
-                aria-label={`Use color ${color}`}
-                onClick={() => onSelectColor(color, false)}
-              />
-            ))}
+                className={`radial-wheel-target-btn${colorTarget === "stroke" ? " is-active" : ""}`}
+                onClick={() => onSetColorTarget("stroke")}
+                title="Stroke color"
+              >
+                <span className="radial-wheel-swatch-dot" style={swatchStyle(strokeColor)} />
+                <span>Stroke</span>
+              </button>
+              <button
+                type="button"
+                className={`radial-wheel-target-btn${colorTarget === "fill" ? " is-active" : ""}`}
+                onClick={() => onSetColorTarget("fill")}
+                title="Fill color"
+              >
+                <span className="radial-wheel-swatch-dot" style={swatchStyle(fillColor)} />
+                <span>Fill</span>
+              </button>
+            </div>
+
+            <RadialColorWheel
+              color={currentColor}
+              size={120}
+              onChange={(hex) => onSelectColor(hex, false)}
+            />
+
+            <div className="radial-wheel-quick-picks">
+              {picks.map((color, index) => (
+                <button
+                  key={`${color}-${index}`}
+                  type="button"
+                  className="radial-wheel-pick"
+                  style={swatchStyle(color)}
+                  title={color}
+                  aria-label={`Use color ${color}`}
+                  onClick={() => onSelectColor(color, false)}
+                />
+              ))}
+            </div>
           </div>
+        </div>
+
+        {/* Krita-inspired floating bottom quick-bar */}
+        <div className="radial-wheel-quickbar" role="toolbar" aria-label="Quick canvas actions">
+          <button
+            type="button"
+            className="radial-wheel-quickbar-btn"
+            title="Fit content to view"
+            aria-label="Fit content to view"
+            onClick={onFitContent}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className="radial-wheel-quickbar-btn"
+            title="Delete selection (Del)"
+            aria-label="Delete selection"
+            onClick={onDeleteSelected}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+            </svg>
+          </button>
+
+          <div className="radial-wheel-quickbar-divider" />
+
+          <button
+            type="button"
+            className="radial-wheel-quickbar-btn"
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+            onClick={onUndo}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7v6h6M3 13a9 9 0 1 1 2.83 6.36L3 13" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className="radial-wheel-quickbar-btn"
+            title="Redo (Ctrl+Y)"
+            aria-label="Redo"
+            onClick={onRedo}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 7v6h-6M21 13a9 9 0 1 0-2.83 6.36L21 13" />
+            </svg>
+          </button>
+
+          <div className="radial-wheel-quickbar-divider" />
+
+          <div className="radial-wheel-quickbar-slider-wrap" title={`Zoom: ${zoomPercent}%`}>
+            <input
+              type="range"
+              min="10"
+              max="400"
+              step="5"
+              value={zoomPercent}
+              className="radial-wheel-quickbar-slider"
+              onChange={(event) => onSetZoom(Number(event.target.value) / 100)}
+              aria-label="Canvas zoom"
+            />
+          </div>
+
+          <button
+            type="button"
+            className="radial-wheel-quickbar-zoom-btn"
+            title="Click to reset zoom to 100%"
+            aria-label="Reset zoom to 100%"
+            onClick={onResetZoom}
+          >
+            {zoomPercent}%
+          </button>
         </div>
       </div>
     </div>

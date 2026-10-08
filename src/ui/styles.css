@@ -94,12 +94,106 @@ button.primary:hover { background: #5753c5; }
   cursor: default;
 }
 .radial-wheel-backdrop:hover { background: #0000; }
-.radial-wheel {
+.radial-wheel-container {
   position: fixed;
   z-index: 31;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   pointer-events: auto;
   user-select: none;
+}
+.radial-wheel {
+  position: relative;
   filter: drop-shadow(0 14px 32px #0006);
+}
+.radial-wheel-quickbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #232328f5;
+  border: 1px solid #ffffff1f;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  border-radius: 999px;
+  padding: 4px 8px;
+  backdrop-filter: blur(8px);
+}
+.radial-wheel-quickbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #c4c4cc;
+  cursor: pointer;
+  padding: 0;
+  transition: all 120ms ease;
+}
+.radial-wheel-quickbar-btn:hover {
+  background: #ffffff18;
+  color: #ffffff;
+  transform: scale(1.08);
+}
+.radial-wheel-quickbar-btn:active {
+  transform: scale(0.95);
+}
+.radial-wheel-quickbar-divider {
+  width: 1px;
+  height: 16px;
+  background: #ffffff1f;
+  margin: 0 2px;
+}
+.radial-wheel-quickbar-slider-wrap {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+.radial-wheel-quickbar-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 90px;
+  height: 4px;
+  border-radius: 2px;
+  background: #44444e;
+  outline: none;
+  cursor: pointer;
+}
+.radial-wheel-quickbar-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #6965db;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  transition: transform 80ms ease;
+}
+.radial-wheel-quickbar-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+.radial-wheel-quickbar-zoom-btn {
+  background: #18181cc0;
+  border: 1px solid #ffffff1a;
+  border-radius: 999px;
+  color: #e0e0e6;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  cursor: pointer;
+  min-width: 44px;
+  text-align: center;
+  transition: all 120ms ease;
+}
+.radial-wheel-quickbar-zoom-btn:hover {
+  background: #6965db;
+  color: #ffffff;
+  border-color: #6965db;
 }
 .radial-wheel-ring { display: block; }
 .radial-wheel-frame {

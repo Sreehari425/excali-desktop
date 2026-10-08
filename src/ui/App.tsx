@@ -805,9 +805,16 @@ export default function App() {
         fillColor={radialWheel.fillColor}
         colorTarget={radialWheel.colorTarget}
         colorPicks={radialWheel.colorPicks}
+        zoom={radialWheel.zoom}
         onSelectTool={radialWheel.selectTool}
         onSelectColor={radialWheel.selectColor}
         onSetColorTarget={radialWheel.setColorTarget}
+        onSetZoom={radialWheel.setZoom}
+        onResetZoom={radialWheel.resetZoom}
+        onFitContent={radialWheel.fitContent}
+        onDeleteSelected={radialWheel.deleteSelected}
+        onUndo={radialWheel.undo}
+        onRedo={radialWheel.redo}
         onDismiss={radialWheel.dismiss}
       />
     </main>
