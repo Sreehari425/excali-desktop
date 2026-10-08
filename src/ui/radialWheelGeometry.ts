@@ -64,7 +64,7 @@ export function clampWheelPosition(
 ): { x: number; y: number } {
   const half = RADIAL_WHEEL_SIZE / 2;
   const margin = 12;
-  const bottomExtra = 88; // floating color-bar & quick-bar height + margins
+  const bottomExtra = 96; // color picks & quickbar height + gaps + margins
   return {
     x: Math.min(viewportWidth - half - margin, Math.max(half + margin, clientX)),
     y: Math.min(viewportHeight - half - margin - bottomExtra, Math.max(half + margin, clientY)),
