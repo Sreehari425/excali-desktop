@@ -244,8 +244,9 @@ export function RadialToolWheel({
             aria-label="Undo"
             onClick={onUndo}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 7v6h6M3 13a9 9 0 1 1 2.83 6.36L3 13" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 14 4 9 9 4" />
+              <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
             </svg>
           </button>
 
@@ -256,8 +257,9 @@ export function RadialToolWheel({
             aria-label="Redo"
             onClick={onRedo}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 7v6h-6M21 13a9 9 0 1 0-2.83 6.36L21 13" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 14 20 9 15 4" />
+              <path d="M4 20v-7a4 4 0 0 1 4-4h12" />
             </svg>
           </button>
 
