@@ -168,46 +168,51 @@ export function RadialToolWheel({
           })}
 
           <div className="radial-wheel-hub-content">
-            <div className="radial-wheel-target-toggle">
-              <button
-                type="button"
-                className={`radial-wheel-target-btn${colorTarget === "stroke" ? " is-active" : ""}`}
-                onClick={() => onSetColorTarget("stroke")}
-                title="Stroke color"
-              >
-                <span className="radial-wheel-swatch-dot" style={swatchStyle(strokeColor)} />
-                <span>Stroke</span>
-              </button>
-              <button
-                type="button"
-                className={`radial-wheel-target-btn${colorTarget === "fill" ? " is-active" : ""}`}
-                onClick={() => onSetColorTarget("fill")}
-                title="Fill color"
-              >
-                <span className="radial-wheel-swatch-dot" style={swatchStyle(fillColor)} />
-                <span>Fill</span>
-              </button>
-            </div>
-
             <RadialColorWheel
               color={currentColor}
-              size={120}
+              size={124}
               onChange={(hex) => onSelectColor(hex, false)}
             />
+          </div>
+        </div>
 
-            <div className="radial-wheel-quick-picks">
-              {picks.map((color, index) => (
-                <button
-                  key={`${color}-${index}`}
-                  type="button"
-                  className="radial-wheel-pick"
-                  style={swatchStyle(color)}
-                  title={color}
-                  aria-label={`Use color ${color}`}
-                  onClick={() => onSelectColor(color, false)}
-                />
-              ))}
-            </div>
+        {/* Floating color shelf: Stroke/Fill toggle + Quick picks */}
+        <div className="radial-wheel-color-bar" role="toolbar" aria-label="Color selection and swatches">
+          <div className="radial-wheel-target-toggle">
+            <button
+              type="button"
+              className={`radial-wheel-target-btn${colorTarget === "stroke" ? " is-active" : ""}`}
+              onClick={() => onSetColorTarget("stroke")}
+              title="Stroke color"
+            >
+              <span className="radial-wheel-swatch-dot" style={swatchStyle(strokeColor)} />
+              <span>Stroke</span>
+            </button>
+            <button
+              type="button"
+              className={`radial-wheel-target-btn${colorTarget === "fill" ? " is-active" : ""}`}
+              onClick={() => onSetColorTarget("fill")}
+              title="Fill color"
+            >
+              <span className="radial-wheel-swatch-dot" style={swatchStyle(fillColor)} />
+              <span>Fill</span>
+            </button>
+          </div>
+
+          <div className="radial-wheel-color-bar-divider" />
+
+          <div className="radial-wheel-quick-picks">
+            {picks.map((color, index) => (
+              <button
+                key={`${color}-${index}`}
+                type="button"
+                className="radial-wheel-pick"
+                style={swatchStyle(color)}
+                title={color}
+                aria-label={`Use color ${color}`}
+                onClick={() => onSelectColor(color, false)}
+              />
+            ))}
           </div>
         </div>
 
