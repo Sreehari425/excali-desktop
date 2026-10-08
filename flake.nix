@@ -152,11 +152,17 @@
       };
     in
     {
-      nixosModules.default = { pkgs, ... }: {
-        environment.systemPackages = [ self.packages.${pkgs.system}.default ];
+      nixosModules.default = { config, lib, pkgs, ... }: {
+        options.programs.excali-desktop.enable = lib.mkEnableOption "Excalidraw Desktop";
+        config = lib.mkIf config.programs.excali-desktop.enable {
+          environment.systemPackages = [ self.packages.${pkgs.system}.default ];
+        };
       };
-      homeManagerModules.default = { pkgs, ... }: {
-        home.packages = [ self.packages.${pkgs.system}.default ];
+      homeManagerModules.default = { config, lib, pkgs, ... }: {
+        options.programs.excali-desktop.enable = lib.mkEnableOption "Excalidraw Desktop";
+        config = lib.mkIf config.programs.excali-desktop.enable {
+          home.packages = [ self.packages.${pkgs.system}.default ];
+        };
       };
       packages.${system} = {
         default = app;
