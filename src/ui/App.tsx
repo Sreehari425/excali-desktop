@@ -19,8 +19,10 @@ import {
   addRecentFile,
   editorSettingsFile,
   lastSessionFile,
+  parseHostPreferences,
   parsePersistedEditorSettings,
   pickPersistedAppState,
+  type HostPreferences,
 } from "./persistence";
 import {
   collaborationSettingsFile,
@@ -33,6 +35,12 @@ import {
   saveRoomScene,
   type CollaborationSettings,
 } from "./collaboration";
+import { RadialToolWheel } from "./RadialToolWheel";
+import {
+  DEFAULT_RADIAL_WHEEL_PREFERENCES,
+  type RadialWheelPreferences,
+} from "./radialWheelDefaults";
+import { useRadialWheelController } from "./useRadialWheelController";
 
 const drawingFilter = [{ name: "Excalidraw drawing", extensions: ["excalidraw"] }];
 
@@ -70,16 +78,29 @@ export default function App() {
   const [roomLinkInput, setRoomLinkInput] = useState("");
   const [roomLink, setRoomLink] = useState("");
   const [collabStatus, setCollabStatus] = useState("Offline");
+  const [radialSettingsOpen, setRadialSettingsOpen] = useState(false);
+  const [hostPreferences, setHostPreferences] = useState<HostPreferences>(() =>
+    parseHostPreferences(undefined),
+  );
   const collabConnectionRef = useRef<ReturnType<typeof connectRoom> | null>(null);
   const persistenceReadyRef = useRef(false);
   const appStateRef = useRef<Partial<AppState>>({});
   const libraryItemsRef = useRef<LibraryItems>([]);
   const recentFilesRef = useRef<string[]>([]);
+  const hostPreferencesRef = useRef<HostPreferences>(parseHostPreferences(undefined));
   const paletteSearchRef = useRef<HTMLInputElement | null>(null);
   const settingsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const sessionSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const radialWheel = useRadialWheelController({
+    enabled: true,
+    preferences: hostPreferences.radialWheel,
+    canvasRef,
+    apiRef,
+    appStateRef,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -112,6 +133,7 @@ export default function App() {
         appState: appStateRef.current,
         libraryItems: libraryItemsRef.current,
         recentFiles: recentFilesRef.current,
+        hostPreferences: hostPreferencesRef.current,
       };
       const serialized = JSON.stringify(snapshot);
       settingsSaveQueueRef.current = settingsSaveQueueRef.current
@@ -181,6 +203,7 @@ export default function App() {
       appState: currentAppState,
       libraryItems: libraryItemsRef.current,
       recentFiles: recentFilesRef.current,
+      hostPreferences: hostPreferencesRef.current,
     });
     const serialized = serializeAsJSON(
       api.getSceneElements(),
@@ -236,6 +259,10 @@ export default function App() {
         libraryItemsRef.current = settings.libraryItems;
         recentFilesRef.current = settings.recentFiles;
         setRecentFiles(settings.recentFiles);
+        if (settings.hostPreferences) {
+          hostPreferencesRef.current = settings.hostPreferences;
+          setHostPreferences(settings.hostPreferences);
+        }
         if (settings.appState.theme === "light" || settings.appState.theme === "dark") {
           setTheme(settings.appState.theme);
         }
@@ -321,6 +348,19 @@ export default function App() {
     libraryItemsRef.current = libraryItems;
     scheduleSettingsSave();
   }, [scheduleSettingsSave]);
+
+  const updateRadialPreferences = useCallback((patch: Partial<RadialWheelPreferences>) => {
+    const next: HostPreferences = {
+      radialWheel: { ...hostPreferencesRef.current.radialWheel, ...patch },
+    };
+    hostPreferencesRef.current = next;
+    setHostPreferences(next);
+    scheduleSettingsSave();
+  }, [scheduleSettingsSave]);
+
+  const resetRadialSlots = useCallback(() => {
+    updateRadialPreferences({ slots: [...DEFAULT_RADIAL_WHEEL_PREFERENCES.slots] });
+  }, [updateRadialPreferences]);
 
   const openDrawingFromPath = useCallback(async (path: string) => {
     try {
@@ -556,6 +596,7 @@ export default function App() {
     { id: "save", label: "Save", description: filePath.current ? `Save ${fileName}` : "Choose where to save this drawing", keywords: "file write", run: () => { void saveDrawing(); } },
     { id: "save-as", label: "Save As…", description: "Save a copy to a new file", keywords: "file export copy", run: () => { void saveDrawing(true); } },
     { id: "collaborate", label: "Collaborate", description: "Open collaboration options", keywords: "online room share invite", run: () => setCollabOpen(true) },
+    { id: "radial-wheel", label: "Radial wheel settings…", description: "Stylus button, shortcut key, and tool ring options", keywords: "krita pie menu palette pen stylus gaomon", run: () => setRadialSettingsOpen(true) },
     { id: "theme", label: `Switch to ${theme === "dark" ? "light" : "dark"} theme`, description: "Change the editor appearance", keywords: "appearance color mode", run: toggleEditorTheme },
   ];
   const normalizedPaletteQuery = paletteQuery.trim().toLowerCase();
@@ -670,6 +711,57 @@ export default function App() {
           <footer className="command-palette-footer"><span>↑↓ Navigate</span><span>↵ Select</span><span>Ctrl+Space Toggle</span><span>Esc {paletteView === "recent" ? "Back" : "Close"}</span></footer>
         </section>
       </div>}
+      {radialSettingsOpen && <section className="collab-panel radial-settings-panel" aria-label="Radial wheel settings">
+        <div className="collab-heading"><strong>Radial tool wheel</strong><button onClick={() => setRadialSettingsOpen(false)}>Close</button></div>
+        <label className="radial-settings-row">
+          <span>Enable radial wheel</span>
+          <input
+            type="checkbox"
+            checked={hostPreferences.radialWheel.enabled}
+            onChange={(event) => updateRadialPreferences({ enabled: event.target.checked })}
+          />
+        </label>
+        <label>
+          Stylus auxiliary button number
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={hostPreferences.radialWheel.pointerButton}
+            onChange={(event) => {
+              const value = Number(event.target.value);
+              if (!Number.isFinite(value)) return;
+              updateRadialPreferences({ pointerButton: Math.trunc(value) });
+            }}
+          />
+        </label>
+        <small>
+          Press the barrel button once to open the wheel — it stays until you click a tool, click outside, press Esc, or press the button again.
+          Drivers often report the facing auxiliary button as <code>1</code>, <code>2</code>, or <code>5</code> — try each until the wheel opens.
+          Last pen button seen: <strong>{radialWheel.lastPenButton ?? "none yet"}</strong>
+        </small>
+        <label>
+          Keyboard toggle key (optional)
+          <select
+            value={hostPreferences.radialWheel.keyboardHoldKey ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+              updateRadialPreferences({ keyboardHoldKey: value.length ? value : null });
+            }}
+          >
+            <option value="">Disabled</option>
+            <option value="`">Backtick (`)</option>
+            <option value="Tab">Tab</option>
+            <option value="q">Q</option>
+            <option value="CapsLock">Caps Lock</option>
+          </select>
+        </label>
+        <small>Press the key once to open. Click a tool on the wheel to select (wheel closes). Press the key again or Esc to close without selecting.</small>
+        <div className="collab-actions">
+          <button type="button" onClick={resetRadialSlots}>Reset slots to default</button>
+        </div>
+        <small>Default ring: selection, hand, shapes, arrow, line, draw, text, eraser, sticky note, laser. Stroke/fill quick picks live in the hub.</small>
+      </section>}
       {collabOpen && <section className="collab-panel" aria-label="Collaboration">
         <div className="collab-heading"><strong>Collaborate</strong><button onClick={() => setCollabOpen(false)}>Close</button></div>
         <div className="collab-heading"><p className="collab-status" role="status">{collabStatus}</p>{roomLink && <button onClick={leaveRoom}>Leave room</button>}</div>
@@ -703,6 +795,21 @@ export default function App() {
           autoFocus
         />
       </section>
+      <RadialToolWheel
+        open={radialWheel.open}
+        x={radialWheel.x}
+        y={radialWheel.y}
+        slots={radialWheel.slots}
+        activeTool={radialWheel.activeTool}
+        strokeColor={radialWheel.strokeColor}
+        fillColor={radialWheel.fillColor}
+        colorTarget={radialWheel.colorTarget}
+        colorPicks={radialWheel.colorPicks}
+        onSelectTool={radialWheel.selectTool}
+        onSelectColor={radialWheel.selectColor}
+        onSetColorTarget={radialWheel.setColorTarget}
+        onDismiss={radialWheel.dismiss}
+      />
     </main>
   );
 }

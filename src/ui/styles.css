@@ -65,6 +65,192 @@ button.primary:hover { background: #5753c5; }
 .app-shell[data-theme="dark"] .command-palette-result small, .app-shell[data-theme="dark"] .command-palette-empty { color: #a1a1aa; }
 .app-shell[data-theme="dark"] .command-palette-result kbd { border-color: #414148; color: #a1a1aa; }
 
+.radial-settings-row {
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+}
+.radial-settings-row input[type="checkbox"] { width: auto; }
+.radial-settings-panel code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.radial-wheel-layer {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  pointer-events: none;
+}
+.radial-wheel-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: #0000;
+  cursor: default;
+}
+.radial-wheel-backdrop:hover { background: #0000; }
+.radial-wheel {
+  position: fixed;
+  z-index: 31;
+  pointer-events: auto;
+  user-select: none;
+  filter: drop-shadow(0 14px 32px #0006);
+}
+.radial-wheel-ring { display: block; }
+.radial-wheel-frame {
+  fill: #2a2a2ecc;
+  stroke: #1118;
+  stroke-width: 1.5;
+}
+.radial-wheel-sector {
+  fill: #3a3a3ef2;
+  stroke: #1a1a1e88;
+  stroke-width: 1;
+  transition: fill 80ms ease;
+  pointer-events: none;
+}
+.radial-wheel-sector.is-active { fill: #4a4a72f2; }
+.radial-wheel-hub {
+  fill: #232328f5;
+  stroke: #0f0f1288;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.radial-wheel-slot {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: #ececf0;
+  color: #222228;
+  box-shadow: inset 0 0 0 1px #0002;
+  cursor: pointer;
+}
+.radial-wheel-slot:hover {
+  background: #fff;
+  transform: translate(-50%, -50%) scale(1.08);
+  box-shadow: 0 0 0 2px #6965db, 0 4px 14px #0004;
+}
+.radial-wheel-slot.is-active { box-shadow: inset 0 0 0 2px #6965db; }
+.radial-wheel-shortcut {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  color: #666670;
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.radial-wheel-hub-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.radial-wheel-target-toggle {
+  display: flex;
+  gap: 2px;
+  background: #18181cc0;
+  border-radius: 999px;
+  padding: 2px 3px;
+  pointer-events: auto;
+  box-shadow: inset 0 0 0 1px #ffffff18;
+}
+
+.radial-wheel-target-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: #a0a0ab;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.radial-wheel-target-btn.is-active {
+  background: #6965db;
+  color: #ffffff;
+}
+
+.radial-wheel-swatch-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px #fff6, 0 0 0 1px #0004;
+}
+
+.radial-color-wheel-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  user-select: none;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+}
+
+.radial-color-wheel-canvas {
+  display: block;
+  border-radius: 50%;
+}
+
+.radial-wheel-quick-picks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  max-width: 120px;
+  pointer-events: auto;
+}
+
+.radial-wheel-pick {
+  width: 11px;
+  height: 11px;
+  border: 0;
+  padding: 0;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px #0005, 0 0 0 1px #ffffff1a;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 80ms ease;
+}
+
+.radial-wheel-pick:hover {
+  box-shadow: 0 0 0 2px #6965db, inset 0 0 0 1px #fff8;
+  transform: scale(1.2);
+}
+
+.app-shell[data-theme="light"] .radial-wheel-frame { fill: #2f3036e6; }
+.app-shell[data-theme="dark"] .radial-wheel-frame { fill: #1a1a1ee8; }
+.app-shell[data-theme="dark"] .radial-wheel-sector { fill: #2d2d33f2; }
+.app-shell[data-theme="dark"] .radial-wheel-sector.is-active { fill: #3d3b5cf2; }
+.app-shell[data-theme="dark"] .radial-wheel-hub { fill: #151518f7; }
+.app-shell[data-theme="dark"] .radial-wheel-slot { background: #d8d8de; color: #1b1b20; }
+.app-shell[data-theme="dark"] .collab-panel.radial-settings-panel { border-color: #414148; background: #1c1c20; color: #e5e5e5; }
+
 @media (max-width: 640px) {
   .command-palette-backdrop { padding-top: 8vh; }
   .command-palette-footer { justify-content: center; gap: 9px; }
